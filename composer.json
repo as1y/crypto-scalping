@@ -1,0 +1,9 @@
+{
+  "require": {
+    "gabordemooij/redbean": "dev-master",
+    "dompdf/dompdf": "^0.8.5",
+    "phpmailer/phpmailer": "^6.1",
+    "snapappointments/bootstrap-select": "^1.13",
+    "ccxt/ccxt": "^1.39"
+  }
+}
