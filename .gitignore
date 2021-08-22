@@ -1,0 +1,10 @@
+.idea/*
+vendor/*
+composer.lock
+logs/*
+temp_load/*
+uploads*
+tmp/*
+!logs/.gitkeep
+!temp_load/.gitkeep
+!tmp/.gitkeep
