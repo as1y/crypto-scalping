@@ -31,9 +31,9 @@ class LongController extends AppController {
 
 
     //СКОРИНГ
-    private $limitmoneta = 4000; // Лимит объемов торгов для скоринга
+    private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
 
-    // МАНИ МЕНЕДЖМЕНТ 1  
+    // МАНИ МЕНЕДЖМЕНТ 1
     private $stopl = 7; // Выключение всего скрипта при просадке депозита
     private $maxprofit = 4; // Профит с которого начинаем трелить
     private $trellingstep = 0.5; // Профит с которого будем выходить

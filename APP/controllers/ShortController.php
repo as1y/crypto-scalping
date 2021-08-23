@@ -31,7 +31,7 @@ class ShortController extends AppController {
 
 
     //СКОРИНГ
-    private $limitmoneta = 4000; // Лимит объемов торгов для скоринга
+    private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
 
     // МАНИ МЕНЕДЖМЕНТ
     private $stopl = 7; // Выключение всего скрипта при просадке депозита
@@ -58,8 +58,6 @@ class ShortController extends AppController {
     private $SCORING = [];
     private $esymbol = "";
     private $MASSORDERS = [];
-
-
 
 
 
