@@ -12,8 +12,8 @@ class LongController extends AppController {
     public $BreadcrumbsControllerUrl = "/panel";
 
 
-    public $ApiKey = "9juzIdfqflVMeQtZf9";
-    public $SecretKey = "FwUD2Ux5sjLo8DyifqYr4cfWgxASblk7CZo7";
+    public $ApiKey = "U5I2AoIrTk4gBR7XLB";
+    public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
 
     // Переменные для стратегии
     public $summazahoda = 0.001; // Сумма захода в монете актива на 1 ордер
@@ -114,7 +114,10 @@ class LongController extends AppController {
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
         $this->SCORING = $this->CheckOrderSCORING($pricenow); // Скоринг при запуске скрипта
-;
+
+
+        echo "1111";
+        exit("zaza");
 
 
         // РАСЧЕТ ОРДЕРОВ

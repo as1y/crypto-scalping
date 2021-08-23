@@ -9,10 +9,11 @@ return [
     ],
 
     'db' => [
-        'dsn' => 'mysql:host=127.0.0.1;dbname=dbburan;charset=utf8;port=3306',
-        'user' => 'userburan',
-        'pass' => 'lc(]sk7{ZZphuT?',
+        'dsn' => 'mysql:host=127.0.0.1;dbname=dbpromocode;charset=utf8;port=3306',
+        'user' => 'userpromocode',
+        'pass' => 'RXb=z?-&bPBtj_6',
     ],
+
 
 
 ];
