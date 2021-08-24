@@ -14,9 +14,9 @@ class LongController extends AppController {
 
     public $ApiKey = "U5I2AoIrTk4gBR7XLB";
     public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
-
+  
     // Переменные для стратегии
-    public $summazahoda = 0.001; // Сумма захода в монете актива на 1 ордер
+    public $summazahoda = 0.01; // Сумма захода в монете актива на 1 ордер
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";
@@ -27,16 +27,16 @@ class LongController extends AppController {
     private $RangeH = 51500;
     private $RangeL = 47000;
     private $side = "long"; // LONG или SHORT
-    private $step = 20; // Размер шага между ордерами
+    private $step = 30; // Размер шага между ордерами
 
 
     //СКОРИНГ
     private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
 
     // МАНИ МЕНЕДЖМЕНТ 1
-    private $stopl = 7; // Выключение всего скрипта при просадке депозита
+    private $stopl = 10; // Выключение всего скрипта при просадке депозита
     private $maxprofit = 4; // Профит с которого начинаем трелить
-    private $trellingstep = 0.5; // Профит с которого будем выходить
+    private $trellingstep = 2; // Профит с которого будем выходить
     private $timew = 20; // В минутах ожидание после завершение цикла
 
 
@@ -114,11 +114,6 @@ class LongController extends AppController {
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
         $this->SCORING = $this->CheckOrderSCORING($pricenow); // Скоринг при запуске скрипта
-
-
-        echo "1111";
-        exit("zaza");
-
 
         // РАСЧЕТ ОРДЕРОВ
         $this->work();
@@ -936,7 +931,6 @@ class LongController extends AppController {
     private function CheckOrderSCORING($pricenow){
 
         $SCORING = SCORING($this->KLINES, $pricenow);
-
 
 
         if ($SCORING['VOL'] < $this->limitmoneta && $SCORING['VOLPREV'] < $this->limitmoneta){

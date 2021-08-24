@@ -5,7 +5,7 @@ require 'vendor/autoload.php';
 require 'lib/functions.php'; //ОБЩИЕ ФУНКЦИИ
 require 'lib/functions_app.php'; //ФУНКЦИИ ПРИЛОЖЕНИЯ
 
-$url = "https://buran.team/short";
+$url = "https://promocode.plus/short";
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);

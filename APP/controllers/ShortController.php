@@ -12,11 +12,11 @@ class ShortController extends AppController {
     public $BreadcrumbsControllerUrl = "/panel";
 
 
-    public $ApiKey = "9juzIdfqflVMeQtZf9";
-    public $SecretKey = "FwUD2Ux5sjLo8DyifqYr4cfWgxASblk7CZo7";
+    public $ApiKey = "U5I2AoIrTk4gBR7XLB";
+    public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
 
     // Переменные для стратегии
-    public $summazahoda = 0.001; // Сумма захода в монете актива на 1 ордер
+    public $summazahoda = 0.01; // Сумма захода в монете актива на 1 ордер
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";
@@ -27,17 +27,18 @@ class ShortController extends AppController {
     private $RangeH = 51500;
     private $RangeL = 47000;
     private $side = "short"; // LONG или SHORT
-    private $step = 20; // Размер шага между ордерами
+    private $step = 30; // Размер шага между ордерами
 
 
     //СКОРИНГ
     private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
 
-    // МАНИ МЕНЕДЖМЕНТ
-    private $stopl = 7; // Выключение всего скрипта при просадке депозита
+    // МАНИ МЕНЕДЖМЕНТ 1
+    private $stopl = 10; // Выключение всего скрипта при просадке депозита
     private $maxprofit = 4; // Профит с которого начинаем трелить
-    private $trellingstep = 0.5; // Профит с которого будем выходить
+    private $trellingstep = 2; // Профит с которого будем выходить
     private $timew = 20; // В минутах ожидание после завершение цикла
+
 
 
     // Переменные для стратегии
@@ -58,6 +59,8 @@ class ShortController extends AppController {
     private $SCORING = [];
     private $esymbol = "";
     private $MASSORDERS = [];
+
+
 
 
 
@@ -111,8 +114,6 @@ class ShortController extends AppController {
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
         $this->SCORING = $this->CheckOrderSCORING($pricenow); // Скоринг при запуске скрипта
-        ;
-
 
         // РАСЧЕТ ОРДЕРОВ
         $this->work();
