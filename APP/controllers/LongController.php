@@ -16,35 +16,33 @@ class LongController extends AppController {
     public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
   
     // Переменные для стратегии
-    public $summazahoda = 0.01; // Сумма захода в монете актива на 1 ордер
+    public $summazahoda = 0.005; // Сумма захода в монете актива на 1 ордер
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";
     public $emailex  = "raskrutkaweb@yandex.ru"; // Сумма захода USD
     public $namebdex = "treks";
 
-
-    private $RangeH = 51500;
-    private $RangeL = 47000;
+    // Переменные для стратегии
+    private $RangeH = 49820;
+    private $RangeL = 45180;
     private $side = "long"; // LONG или SHORT
-    private $step = 30; // Размер шага между ордерами
+    private $step = 15; // Размер шага между ордерами
+    private $maxposition = 40; // Максимальный размер позиции (кол-во ордеров)
 
 
     //СКОРИНГ
     private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
 
     // МАНИ МЕНЕДЖМЕНТ 1
-    private $stopl = 10; // Выключение всего скрипта при просадке депозита
+    private $stopl = 5; // Выключение всего скрипта при просадке депозита
     private $maxprofit = 4; // Профит с которого начинаем трелить
     private $trellingstep = 2; // Профит с которого будем выходить
-    private $timew = 20; // В минутах ожидание после завершение цикла
+    private $timew = 30; // В минутах ожидание после завершение цикла
+    private $timestopinterval = 120;
 
 
-
-    // Переменные для стратегии
-    private $maxposition = 30; // Максимальный размер позиции
     private $skolz = 1; // ШАГ выше которого выставляется лимитник
-    private $stopdistantion = 5; // Дистанция после которой переставляем ордера
 
 
     private $MARKET = false; // Работа по маркету или нет
@@ -323,7 +321,7 @@ class LongController extends AppController {
         }
 
         if ($LASTZAPIS['typeclose'] == "STOP"){
-            if ($timewait > $this->timew*2)  R::trash($TREK);
+            if ($timewait > $this->timestopinterval*6)  R::trash($TREK);
             // Запускаем через время оиждания
         }
 
@@ -473,59 +471,6 @@ class LongController extends AppController {
                 // Проверка на убыток ордера
 
 
-                if ( $distance >= $this->maxposition + $this->stopdistantion){
-
-
-
-
-                    echo "<b><font color='red'>ОРДЕР ВТОРОГО СТАТУСА ЛИШНИЙ НАДО ОТМЕНЯТЬ</font></b> <br>";
-
-                    // Проверяем его в РЕСТЕ
-
-
-                    // Отмена ТЕКУЩЕГО ОРДЕРА
-                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol);
-                    show($cancel);
-                    // задаем ордеру статус1
-                    $ARRCHANGE = [];
-                    $ARRCHANGE['stat'] = 1;
-                    $ARRCHANGE['orderid'] = NULL;
-                    $ARRCHANGE['type'] = NULL;
-                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
-                    // Отмена ТЕКУЩЕГО ОРДЕРА
-
-
-
-                    // ВЫСТАВЛЯЕМ ОРДЕР ВТОРОГО СТАТУСА
-                    echo "Текущая цена: ".$pricenow."<br>";
-                    // Определяем какой ордер ID заменить на второй статус
-                    $TargetOrder = $this->GetUpdateOrder2($TREK, $OrderBD);
-                    // show($TargetOrder);
-
-                    $price = $TargetOrder['price'];
-
-                    $order = $this->CreateReverseOrder($pricenow, $price, $TargetOrder, $TREK); // Реверсный ордер при веревыставлении на статусе 2
-
-                    $ARRCHANGE = [];
-                    $ARRCHANGE['stat'] = 2;
-                    $ARRCHANGE['orderid'] = $order['id'];
-                    $ARRCHANGE['type'] = "STOP";
-                    $ARRCHANGE['lastprice'] = $OrderBD['lastprice'];
-
-                    $this->ChangeARRinBD($ARRCHANGE, $TargetOrder['id'], "orders");
-                    // ВЫСТАВЛЯЕМ ОРДЕР ВТОРОГО СТАТУСА
-
-                    $countplus = $TREK['countstop'] + 1;
-                    $ARRTREK['countstop'] = $countplus;
-                    $this->ChangeARRinBD($ARRTREK, $TREK['id']);
-
-
-
-                    continue;
-
-
-                }
-
                 echo "Ордер не откупился<br>";
 
 
@@ -640,7 +585,6 @@ class LongController extends AppController {
             if ($this->OrderControl($OrderREST) === FALSE){
                 echo "ОРДЕР не откупился <br>";
 
-
                 $distance = $this->CheckDistance($TREK, $pricenow, $OrderBD);
                 echo "Расстояние ордера до цены : ".$distance."<br>";
 
@@ -664,12 +608,6 @@ class LongController extends AppController {
 
 
                 }
-
-
-
-
-
-
 
 
                 continue;
