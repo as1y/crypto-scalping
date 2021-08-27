@@ -30,6 +30,8 @@ class LongController extends AppController {
     private $step = 15; // Размер шага между ордерами
     private $maxposition = 40; // Максимальный размер позиции (кол-во ордеров)
     private $TrellingOrder = 0.1;
+    private $GOAL = 100;
+
 
     //СКОРИНГ
     private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
@@ -316,6 +318,23 @@ class LongController extends AppController {
         var_dump($this->SCORING);
         echo "<hr>";
 
+        if ($LASTZAPIS['typeclose'] == "LEAVE"){
+
+            echo "Вышли из глобального коридора";
+            return false;
+            //if ($timewait > $this->timewait)  R::trash($TREK);
+            // Запускаем через время оиждания
+        }
+
+        if ($LASTZAPIS['typeclose'] == "GOAL"){
+
+            echo "Достигли ЦЕЛИ!"; 
+            return false;
+            //if ($timewait > $this->timewait)  R::trash($TREK);
+            // Запускаем через время оиждания
+        }
+
+
         if ($this->SCORING === FALSE){
             echo "Ждем положительного скоринга";
             return false;
@@ -331,15 +350,6 @@ class LongController extends AppController {
             echo "TW:".$timewait." - ".$this->timew."<br>";
 
             if ($timewait > $this->timew)  R::trash($TREK);
-            // Запускаем через время оиждания
-        }
-
-
-        if ($LASTZAPIS['typeclose'] == "LEAVE"){
-
-            echo "Вышли из глобального коридора";
-            return false;
-            //if ($timewait > $this->timewait)  R::trash($TREK);
             // Запускаем через время оиждания
         }
 
@@ -931,6 +941,11 @@ class LongController extends AppController {
             $this->CloseCycle($TREK, "STOP"); // Закрытие цикла по стопу баланса
 
         }
+
+        if ($NOWPROFIT > $this->GOAL){
+            $this->CloseCycle($TREK, "GOAL"); // Закрытие цикла по стопу баланса
+        }
+
 
         // Закрытие по треллинг стопу
         if ($TREK['maxprofit'] > $this->maxprofit){ // Если максимальный профит составил более 10% от депозита
