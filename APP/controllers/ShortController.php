@@ -16,7 +16,7 @@ class ShortController extends AppController {
     public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
 
     // Переменные для стратегии
-    public $summazahoda = 0.005; // Сумма захода в монете актива на 1 ордер
+    public $summazahoda = 0.001; // Сумма захода в монете актива на 1 ордер
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";

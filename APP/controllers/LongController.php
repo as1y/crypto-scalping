@@ -16,7 +16,7 @@ class LongController extends AppController {
     public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
   
     // Переменные для стратегии
-    public $summazahoda = 0.005; // Сумма захода в монете актива на 1 ордер
+    public $summazahoda = 0.001; // Сумма захода в монете актива на 1 ордер
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";
@@ -29,7 +29,7 @@ class LongController extends AppController {
     private $side = "long"; // LONG или SHORT
     private $step = 15; // Размер шага между ордерами
     private $maxposition = 40; // Максимальный размер позиции (кол-во ордеров)
-
+    private $TrellingOrder = 0.1;
 
     //СКОРИНГ
     private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
@@ -225,6 +225,7 @@ class LongController extends AppController {
             $ARR['amount'] = $val['quantity'];
             $ARR['price'] = $val['price'];
             $ARR['first'] = 1;
+            $ARR['maxdelta'] = 0;
             $this->AddARRinBD($ARR, "orders");
         }
 
@@ -409,7 +410,26 @@ class LongController extends AppController {
             echo "#".$OrderBD['id']." СТАТУС ОРДЕРА <b>".$OrderBD['stat']."</b> - ".$OrderBD['orderid']." - <b>".$OrderBD['side']."</b> <br>";
             echo  "Дистанция по БД: ".$distance."<br>";
 
+            // Начинается треллинг
+
             // Работа с ордерами вторго статуса
+            if ($OrderBD['orderid'] == NULL){
+
+                echo "РАБОТАЕМ С ТРЕЛЛИНГОМ!!!!<br>";
+
+
+                $delta = $this->GetDelta($TREK, $OrderBD, $pricenow); // Получение дельты на текущий ордер
+
+
+                echo "<b>Дельта ордера в шагах :</b>".$delta."<br>";
+
+
+                continue;
+
+            }
+
+
+
 
 
 
@@ -506,6 +526,7 @@ class LongController extends AppController {
 
         return true;
     }
+
 
     private function WorkStat1($TREK, $AllOrdersREST, $pricenow){
 
@@ -630,14 +651,12 @@ class LongController extends AppController {
 
 
             echo "<font color='green'>Ордер откупился по цене</font> ".$OrderREST['price']."<br>";
-            echo "Будем выставлять по: ".$price."<br>";
-            echo "Текущая цена - ".$pricenow."<br>";
-
-
+          //  echo "Будем выставлять по: ".$price."<br>";
+          //  echo "Текущая цена - ".$pricenow."<br>";
 
             // ВЫСТАВЛЕНИЕ РЕВЕРСНОГО ОРДЕРА
             // Если текущая цены выше цены которой мы планировали выставлять
-            $order = $this->CreateReverseOrder($pricenow, $price, $OrderBD, $TREK);
+            //$order = $this->CreateReverseOrder($pricenow, $price, $OrderBD, $TREK);
 
             $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST); // Исполнен статус 1
 
@@ -650,7 +669,7 @@ class LongController extends AppController {
 
             $ARRCHANGE = [];
             $ARRCHANGE['stat'] = 2;
-            $ARRCHANGE['orderid'] = $order['id'];
+           // $ARRCHANGE['orderid'] = $order['id'];
             $ARRCHANGE['type'] = "LIMIT";
             $ARRCHANGE['first'] = 0;
             $ARRCHANGE['lastprice'] = $OrderREST['last'];
@@ -676,49 +695,23 @@ class LongController extends AppController {
 
 
 
-    private function GlobalStop($TREK, $pricenow){
+    private function GetDelta($TREK, $OrderBD, $pricenow){
 
-        $OrdersBD =  $this->GetAllOrdersBD($TREK['id']);
+        if ($TREK['workside'] == "long") $delta = $pricenow - $OrderBD['lastprice'];
+        if ($TREK['workside'] == "short") $delta = $OrderBD['lastprice'] - $pricenow;
 
-        $count['ALL'] = 0;
-        $count['short'] = 0;
-        $count['long'] = 0;
+        $delta = round($delta/$TREK['step'], 1);
 
-        foreach ($OrdersBD as $key=>$ORDER){
-
-
-            if ($ORDER['stat'] == 2 && $ORDER['side'] == "long"){
-                if ($pricenow > $ORDER['price']) continue;
-
-                $delta = $ORDER['price'] - $pricenow;
-                $delta = round($delta/$TREK['step']);
-                //         show($delta);
-                $count['ALL'] = $count['ALL'] + $delta;
-                $count['long'] = $count['long'] + $delta;
-
-            }
-
-
-            if ($ORDER['stat'] == 2 && $ORDER['side'] == "short"){
-                if ($pricenow < $ORDER['price']) continue;
-                //           show($delta);
-                $delta = $pricenow - $ORDER['price'];
-                $delta = round($delta/$TREK['step']);
-                $count['ALL'] = $count['ALL'] + $delta;
-                $count['short'] = $count['short'] + $delta;
-
-            }
-
-
-
+        if ($delta > $OrderBD['maxdelta']){
+            $ARRCHANGE = [];
+            $ARRCHANGE['maxdelta'] = $delta;
+            $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
         }
 
 
 
-        return $count;
-
+        return $delta;
     }
-
 
 
 
@@ -1526,9 +1519,6 @@ class LongController extends AppController {
 
 
 
-        $countm =  $this->GlobalStop($TREK, $OrderREST['price'])['ALL'];
-
-
         $MASS = [
             'trekid' => $TREK['id'],
             'side' => $TREK['workside'],
@@ -1544,7 +1534,6 @@ class LongController extends AppController {
             'korsize' => $SCORING['KORSIZE'],
             'color' => $SCORING['COLOR'],
             'dlinna' => $SCORING['DLINNA'],
-            'countminus' => $countm,
         ];
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
         $tbl3 = R::dispense("trekhistory");
