@@ -420,7 +420,6 @@ class LongController extends AppController {
 
                 $delta = $this->GetDelta($TREK, $OrderBD, $pricenow); // Получение дельты на текущий ордер
 
-
                 echo "<b>Дельта ордера в шагах :</b>".$delta."<br>";
 
 

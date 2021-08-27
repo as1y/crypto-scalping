@@ -9,9 +9,9 @@ return [
     ],
 
     'db' => [
-        'dsn' => 'mysql:host=127.0.0.1;dbname=dbpromocode;charset=utf8;port=3306',
-        'user' => 'userpromocode',
-        'pass' => 'RXb=z?-&bPBtj_6',
+        'dsn' => 'mysql:host=127.0.0.1;dbname=dbtestbot111;charset=utf8;port=3306',
+        'user' => 'usertestbot111',
+        'pass' => '=WKrZUz4_QVF1cm',
     ],
 
 
