@@ -20,29 +20,36 @@ class ShortController extends AppController {
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";
+    public $Basestep = 1;
     public $emailex  = "raskrutkaweb@yandex.ru"; // Сумма захода USD
     public $namebdex = "treks";
 
-
+    // Переменные для стратегии
     private $RangeH = 49820;
     private $RangeL = 45180;
     private $side = "short"; // LONG или SHORT
-    private $step = 30; // Размер шага между ордерами
+    private $step = 15; // Размер шага между ордерами
+    private $maxposition = 40; // Максимальный размер позиции (кол-во ордеров)
+    private $GOAL = 100;
+
+
+    // ТРЕЛЛИНГ ОРДЕРОВ
+    private $StartTrellingOrderSTEP = 4; // С какого шага начинаем треллить ордер
+    private $TrellingProsadkaOrderSTEP = 2; // Расстояние треллинга
+
 
 
     //СКОРИНГ
-    private $limitmoneta = 3000; // Лимит объемов торгов для скоринга
+    private $limitmoneta = 5000; // Лимит объемов торгов для скоринга
 
     // МАНИ МЕНЕДЖМЕНТ 1
-    private $stopl = 7; // Выключение всего скрипта при просадке депозита
+    private $stopl = 5; // Выключение всего скрипта при просадке депозита
     private $maxprofit = 4; // Профит с которого начинаем трелить
     private $trellingstep = 2; // Профит с которого будем выходить
-    private $timew = 20; // В минутах ожидание после завершение цикла
+    private $timew = 30; // В минутах ожидание после завершение цикла
+    private $timestopinterval = 120;
 
 
-
-    // Переменные для стратегии
-    private $maxposition = 30; // Максимальный размер позиции
     private $skolz = 1; // ШАГ выше которого выставляется лимитник
 
 
@@ -226,6 +233,7 @@ class ShortController extends AppController {
             $ARR['amount'] = $val['quantity'];
             $ARR['price'] = $val['price'];
             $ARR['first'] = 1;
+            $ARR['maxdelta'] = 0;
             $this->AddARRinBD($ARR, "orders");
         }
 
@@ -316,13 +324,30 @@ class ShortController extends AppController {
         var_dump($this->SCORING);
         echo "<hr>";
 
+        if ($LASTZAPIS['typeclose'] == "LEAVE"){
+
+            echo "Вышли из глобального коридора";
+            return false;
+            //if ($timewait > $this->timewait)  R::trash($TREK);
+            // Запускаем через время оиждания
+        }
+
+        if ($LASTZAPIS['typeclose'] == "GOAL"){
+
+            echo "Достигли ЦЕЛИ!";
+            return false;
+            //if ($timewait > $this->timewait)  R::trash($TREK);
+            // Запускаем через время оиждания
+        }
+
+
         if ($this->SCORING === FALSE){
             echo "Ждем положительного скоринга";
             return false;
         }
 
         if ($LASTZAPIS['typeclose'] == "STOP"){
-            if ($timewait > $this->timew*2)  R::trash($TREK);
+            if ($timewait > $this->timestopinterval*6)  R::trash($TREK);
             // Запускаем через время оиждания
         }
 
@@ -331,15 +356,6 @@ class ShortController extends AppController {
             echo "TW:".$timewait." - ".$this->timew."<br>";
 
             if ($timewait > $this->timew)  R::trash($TREK);
-            // Запускаем через время оиждания
-        }
-
-
-        if ($LASTZAPIS['typeclose'] == "LEAVE"){
-
-            echo "Вышли из глобального коридора";
-            return false;
-            //if ($timewait > $this->timewait)  R::trash($TREK);
             // Запускаем через время оиждания
         }
 
@@ -410,7 +426,57 @@ class ShortController extends AppController {
             echo "#".$OrderBD['id']." СТАТУС ОРДЕРА <b>".$OrderBD['stat']."</b> - ".$OrderBD['orderid']." - <b>".$OrderBD['side']."</b> <br>";
             echo  "Дистанция по БД: ".$distance."<br>";
 
-            // Работа с ордерами вторго статуса
+            // Начинается треллинг
+
+            // ПОДГОТОВКА К ВЫСТАВЛЕНИЮ ОРДЕРА
+            if ($OrderBD['orderid'] == NULL){
+
+
+                $DELTA = $this->GetDelta($TREK, $OrderBD, $pricenow); // Получение дельты на текущий ордер
+
+                echo "<b>Дельта ордера в шагах :     </b>".$DELTA['nowdelta']."<br>";
+
+                // Базовая проверка дельты
+                if ($DELTA['nowdelta'] < 1){
+                    echo "<b><font color='red'>Ордер в минусовой зоне</font></b><br>";
+                    continue;
+                }
+
+                // Треллинг
+                if ($DELTA['maxdelta'] > $this->StartTrellingOrderSTEP){
+                    echo "<b><font color='green'>Вошли в положительную зону треллинга</font></b><br>";
+                    $Prosadka = $DELTA['maxdelta'] - $DELTA['nowdelta'];
+                    echo "Текущая просадка от максимальной дельты: ".$Prosadka."<br>";
+                    if ($Prosadka < $this->TrellingProsadkaOrderSTEP){
+                        echo "<b><font color='red'>Просадка еще не достигла критической точки</font></b><br>";
+                        continue;
+                    }
+
+                }
+
+                echo "<font color='#663399'>Можно выставлять ордер на продажу выставлять ордер на продажу<br></font>";
+
+
+
+                // ВЫСТАВЛЯЕМ ОРДЕР ФИКСАЦИИ
+                if ($OrderBD['side'] == "long")  {
+                    $price = $this->GetPriceSide($this->symbol, "short") + $this->Basestep;
+                }
+                if ($OrderBD['side'] == "short")  {
+                    $price = $this->GetPriceSide($this->symbol, "long") - $this->Basestep;
+                }
+
+
+                $order = $this->CreateReverseOrder($price, $OrderBD); // Создание реверсного ордера при треллинге СТАТУС2
+                $ARRCHANGE = [];
+                $ARRCHANGE['orderid'] = $order['id'];
+                $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+                continue;
+
+            }
+
+
 
 
 
@@ -420,7 +486,7 @@ class ShortController extends AppController {
 
             $OrderREST = $this->GetOneOrderREST($OrderBD['orderid'], $AllOrdersREST); // Ордер РЕСТ статус 2
 
-            // show($OrderREST);
+
 
             // Проверка на cancel (перевыставление)
             if ($OrderREST['status'] == "Cancelled"){
@@ -428,48 +494,43 @@ class ShortController extends AppController {
                 echo "<font color='#8b0000'>ОРДЕР отменен (canceled)!!! (второй статус) </font> <br>";
                 show($OrderREST);
 
+                // ВЫСТАВЛЯЕМ ОРДЕР ФИКСАЦИИ
+                if ($OrderBD['side'] == "long")  {
+                    $price = $this->GetPriceSide($this->symbol, "short") + $this->Basestep;
+                }
+                if ($OrderBD['side'] == "short")  {
+                    $price = $this->GetPriceSide($this->symbol, "long") - $this->Basestep;
+                }
 
-                $pricenow = $this->GetPriceSide($this->symbol, $OrderBD['side']);
 
-//                    if ($OrderBD['side'] == "long")  {
-//                        $price = $OrderBD['price'] + $TREK['step'];
-//                    }
-//                    if ($OrderBD['side'] == "short")  {
-//                        $price = $OrderBD['price'] - $TREK['step'];
-//                    }
+                $order = $this->CreateReverseOrder($price, $OrderBD); // Создание реверсного ордера при отмене СТАТУС2
+                $ARRCHANGE = [];
+                $ARRCHANGE['orderid'] = $order['id'];
+                $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
-                $price = $OrderREST['price'];
-                if (!empty($OrderBD['lastprice'])) $price = $OrderBD['lastprice'];
-
-                echo "Текущая цена: ".$pricenow."<br>";
-                echo "Мы перевыставляем ордер по цене: ".$price."<br>";
-
-                echo "Перевыставляем ордер на 2-м статусе! Обнуляем ID ордера!  <br>";
-
-//                    echo "ЦЕНА СЕЙЧАС<br>";
-//                    show($pricenow);
-//                    echo "ЦЕНА ОРДЕРА<br>";
-//                    show($price);
-//                    echo "РЕСТ<br>";
-//                    show($OrderREST);
-//                    echo "БД<br>";
-//                    show($OrderBD);
-//                    echo "ТРЕК<br>";
-//                    show($TREK);
-
-                $order =  $this->CreateReverseOrder($pricenow, $price, $OrderBD, $TREK);
-
-                $this->ChangeIDOrderBD($order, $OrderBD['id']);
                 continue;
 
             }
 
+
+
+
             // Проверка на исоплненность
             if ($this->OrderControl($OrderREST) === FALSE){
-                // Проверка ОРДЕРА НА СТОП!!!
 
 
-                // Проверка на убыток ордера
+
+                $DELTA = $this->GetDelta($TREK, $OrderBD, $pricenow); // Получение дельты на текущий ордер
+                show($DELTA);
+
+                if ($DELTA['nowdelta'] < 0){
+                    echo "Надо отменять ордер<br>";
+                }
+
+                if ($DELTA['nowdelta'] > 1){
+                    echo "Перевыставляем ордер на текущую цену<br>";
+                }
+
 
                 echo "Ордер не откупился<br>";
 
@@ -485,6 +546,7 @@ class ShortController extends AppController {
 
 
             $SCORING = json_decode($OrderBD['startscoring'], true);
+
             $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST, $SCORING); // Исполнен статус 2
 
             $countplus = $TREK['countplus'] + 1;
@@ -496,7 +558,6 @@ class ShortController extends AppController {
             $ARRCHANGE['stat'] = 1;
             $ARRCHANGE['orderid'] = NULL;
             $ARRCHANGE['type'] = NULL;
-            $ARRCHANGE['sliv'] = 0; // Отменяем слив
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
             echo "<hr>";
@@ -506,6 +567,7 @@ class ShortController extends AppController {
 
         return true;
     }
+
 
     private function WorkStat1($TREK, $AllOrdersREST, $pricenow){
 
@@ -585,7 +647,6 @@ class ShortController extends AppController {
             if ($this->OrderControl($OrderREST) === FALSE){
                 echo "ОРДЕР не откупился <br>";
 
-
                 $distance = $this->CheckDistance($TREK, $pricenow, $OrderBD);
                 echo "Расстояние ордера до цены : ".$distance."<br>";
 
@@ -611,40 +672,14 @@ class ShortController extends AppController {
                 }
 
 
-
-
-
-
-
-
                 continue;
             }
 
 
 
-            // ОРДЕР ОТКУПИОСЯ. ВЫСТАВЛЯЕМ РЕВЕРС
-
-            // Цена по которой нужно выставлять реверсный
-            $pricenow = $this->GetPriceSide($this->symbol, $OrderBD['side']);
-
-            if ($OrderBD['side'] == "long")  {
-                $price = $OrderREST['price'] + $TREK['step'];
-            }
-            if ($OrderBD['side'] == "short")  {
-                $price = $OrderREST['price'] - $TREK['step'];
-            }
-
-
+            // ОРДЕР ОТКУПИОСЯ.
 
             echo "<font color='green'>Ордер откупился по цене</font> ".$OrderREST['price']."<br>";
-            echo "Будем выставлять по: ".$price."<br>";
-            echo "Текущая цена - ".$pricenow."<br>";
-
-
-
-            // ВЫСТАВЛЕНИЕ РЕВЕРСНОГО ОРДЕРА
-            // Если текущая цены выше цены которой мы планировали выставлять
-            $order = $this->CreateReverseOrder($pricenow, $price, $OrderBD, $TREK);
 
             $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST); // Исполнен статус 1
 
@@ -657,7 +692,7 @@ class ShortController extends AppController {
 
             $ARRCHANGE = [];
             $ARRCHANGE['stat'] = 2;
-            $ARRCHANGE['orderid'] = $order['id'];
+            $ARRCHANGE['orderid'] = NULL;
             $ARRCHANGE['type'] = "LIMIT";
             $ARRCHANGE['first'] = 0;
             $ARRCHANGE['lastprice'] = $OrderREST['last'];
@@ -683,49 +718,27 @@ class ShortController extends AppController {
 
 
 
-    private function GlobalStop($TREK, $pricenow){
+    private function GetDelta($TREK, $OrderBD, $pricenow){
 
-        $OrdersBD =  $this->GetAllOrdersBD($TREK['id']);
-
-        $count['ALL'] = 0;
-        $count['short'] = 0;
-        $count['long'] = 0;
-
-        foreach ($OrdersBD as $key=>$ORDER){
+        if ($TREK['workside'] == "long") $DELTA['nowdelta'] = $pricenow - $OrderBD['lastprice'];
+        if ($TREK['workside'] == "short") $DELTA['nowdelta'] = $OrderBD['lastprice'] - $pricenow;
 
 
-            if ($ORDER['stat'] == 2 && $ORDER['side'] == "long"){
-                if ($pricenow > $ORDER['price']) continue;
-
-                $delta = $ORDER['price'] - $pricenow;
-                $delta = round($delta/$TREK['step']);
-                //         show($delta);
-                $count['ALL'] = $count['ALL'] + $delta;
-                $count['long'] = $count['long'] + $delta;
-
-            }
+        $DELTA['nowdelta'] = round($DELTA['nowdelta']/$TREK['step'], 1);
+        $DELTA['maxdelta'] = $OrderBD['maxdelta'];
 
 
-            if ($ORDER['stat'] == 2 && $ORDER['side'] == "short"){
-                if ($pricenow < $ORDER['price']) continue;
-                //           show($delta);
-                $delta = $pricenow - $ORDER['price'];
-                $delta = round($delta/$TREK['step']);
-                $count['ALL'] = $count['ALL'] + $delta;
-                $count['short'] = $count['short'] + $delta;
-
-            }
-
-
-
+        if ($DELTA['nowdelta'] > $OrderBD['maxdelta']){
+            $ARRCHANGE = [];
+            $ARRCHANGE['maxdelta'] = $DELTA['nowdelta'];
+            $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+            $DELTA['maxdelta'] = $DELTA['nowdelta'];
         }
 
 
 
-        return $count;
-
+        return $DELTA;
     }
-
 
 
 
@@ -878,7 +891,6 @@ class ShortController extends AppController {
         $SCORING = SCORING($this->KLINES, $pricenow);
 
 
-
         if ($SCORING['VOL'] < $this->limitmoneta && $SCORING['VOLPREV'] < $this->limitmoneta){
 
 
@@ -947,6 +959,11 @@ class ShortController extends AppController {
             $this->CloseCycle($TREK, "STOP"); // Закрытие цикла по стопу баланса
 
         }
+ 
+        if ($NOWPROFIT > $this->GOAL){
+            $this->CloseCycle($TREK, "GOAL"); // Закрытие цикла по стопу баланса
+        }
+
 
         // Закрытие по треллинг стопу
         if ($TREK['maxprofit'] > $this->maxprofit){ // Если максимальный профит составил более 10% от депозита
@@ -1041,10 +1058,7 @@ class ShortController extends AppController {
 
     }
 
-    private function CreateReverseOrder($pricenow, $price, $OrderBD, $TREK , $type = ""){
-
-
-        echo "Цена до обработки".$price."<br>";
+    private function CreateReverseOrder($price, $OrderBD , $type = ""){
 
 
         $params = [
@@ -1053,15 +1067,9 @@ class ShortController extends AppController {
             'reduce_only' => true,
         ];
 
-        if ($OrderBD['side'] == "long") {
-            if ($pricenow > $price) $price = $pricenow + round($TREK['step']/2);
-            $side = "sell";
-        }
+        if ($OrderBD['side'] == "long") $side = "sell";
 
-        if ($OrderBD['side'] == "short") {
-            if ($pricenow < $price) $price = $pricenow - round($TREK['step']/2);
-            $side = "Buy";
-        }
+        if ($OrderBD['side'] == "short") $side = "Buy";
 
 
         show($side);
@@ -1532,9 +1540,12 @@ class ShortController extends AppController {
         if ($SCORING === FALSE)  $SCORING = SCORING($this->KLINES, $OrderREST['price']);
 
 
-
-
-        $countm =  $this->GlobalStop($TREK, $OrderREST['price'])['ALL'];
+        $delta = 0;
+        if ($OrderBD['stat'] == 2){
+            if ($TREK['workside'] == "long") $delta = $OrderREST['price'] - $OrderBD['lastprice'];
+            if ($TREK['workside'] == "short") $delta = $OrderBD['lastprice'] - $OrderREST['price'];
+            $delta = round($delta/$TREK['step'], 1);
+        }
 
 
         $MASS = [
@@ -1545,6 +1556,7 @@ class ShortController extends AppController {
             'timeexit' => date("H:i:s"),
             'lastprice' => $OrderBD['lastprice'],
             'amount' => $OrderREST['amount'],
+            'delta' => $delta,
             'fact' => $OrderREST['price'],
             'bal' => $ACTBAL,
             'dollar' => $dollar,
@@ -1552,7 +1564,6 @@ class ShortController extends AppController {
             'korsize' => $SCORING['KORSIZE'],
             'color' => $SCORING['COLOR'],
             'dlinna' => $SCORING['DLINNA'],
-            'countminus' => $countm,
         ];
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
         $tbl3 = R::dispense("trekhistory");

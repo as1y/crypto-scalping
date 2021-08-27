@@ -328,7 +328,7 @@ class LongController extends AppController {
 
         if ($LASTZAPIS['typeclose'] == "GOAL"){
 
-            echo "Достигли ЦЕЛИ!"; 
+            echo "Достигли ЦЕЛИ!";
             return false;
             //if ($timewait > $this->timewait)  R::trash($TREK);
             // Запускаем через время оиждания
