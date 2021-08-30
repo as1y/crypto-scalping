@@ -20,7 +20,7 @@ class ShortController extends AppController {
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";
-    public $Basestep = 1;
+    public $Basestep = 0.5;
     public $emailex  = "raskrutkaweb@yandex.ru"; // Сумма захода USD
     public $namebdex = "treks";
 
@@ -444,37 +444,41 @@ class ShortController extends AppController {
 
                 // Треллинг
                 if ($DELTA['maxdelta'] > $this->StartTrellingOrderSTEP){
+
                     echo "<b><font color='green'>Вошли в положительную зону треллинга</font></b><br>";
                     $Prosadka = $DELTA['maxdelta'] - $DELTA['nowdelta'];
+
                     echo "Текущая просадка от максимальной дельты: ".$Prosadka."<br>";
+
                     if ($Prosadka < $this->TrellingProsadkaOrderSTEP){
                         echo "<b><font color='red'>Просадка еще не достигла критической точки</font></b><br>";
                         continue;
                     }
 
-                }
-
-                echo "<font color='#663399'>Можно выставлять ордер на продажу выставлять ордер на продажу<br></font>";
 
 
 
-                // ВЫСТАВЛЯЕМ ОРДЕР ФИКСАЦИИ
-                if ($OrderBD['side'] == "long")  {
-                    $price = $this->GetPriceSide($this->symbol, "short") + $this->Basestep;
-                }
-                if ($OrderBD['side'] == "short")  {
-                    $price = $this->GetPriceSide($this->symbol, "long") - $this->Basestep;
-                }
+                    echo "<font color='#663399'>Можно выставлять ордер на продажу выставлять ордер на продажу<br></font>";
 
 
-                $order = $this->CreateReverseOrder($price, $OrderBD); // Создание реверсного ордера при треллинге СТАТУС2
-                $ARRCHANGE = [];
-                $ARRCHANGE['orderid'] = $order['id'];
-                $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+                    // ВЫСТАВЛЯЕМ ОРДЕР ФИКСАЦИИ
+
+                    $order = $this->CreateReverseOrder($OrderBD); // Создание реверсного ордера при треллинге СТАТУС2
+
+
+
+                    continue;
+
+
+
+
+                } // Завершение работы в зоне треллинга
+
 
                 continue;
 
-            }
+            } // Завершение работы с ордерами статуса NULL
+
 
 
 
@@ -495,18 +499,8 @@ class ShortController extends AppController {
                 show($OrderREST);
 
                 // ВЫСТАВЛЯЕМ ОРДЕР ФИКСАЦИИ
-                if ($OrderBD['side'] == "long")  {
-                    $price = $this->GetPriceSide($this->symbol, "short") + $this->Basestep;
-                }
-                if ($OrderBD['side'] == "short")  {
-                    $price = $this->GetPriceSide($this->symbol, "long") - $this->Basestep;
-                }
+                $order = $this->CreateReverseOrder($OrderBD); // Создание реверсного ордера при отмене СТАТУС2
 
-
-                $order = $this->CreateReverseOrder($price, $OrderBD); // Создание реверсного ордера при отмене СТАТУС2
-                $ARRCHANGE = [];
-                $ARRCHANGE['orderid'] = $order['id'];
-                $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
                 continue;
 
@@ -518,21 +512,69 @@ class ShortController extends AppController {
             // Проверка на исоплненность
             if ($this->OrderControl($OrderREST) === FALSE){
 
+                echo "Ордер не откупился<br>";
 
 
                 $DELTA = $this->GetDelta($TREK, $OrderBD, $pricenow); // Получение дельты на текущий ордер
                 show($DELTA);
 
                 if ($DELTA['nowdelta'] < 0){
-                    echo "Надо отменять ордер<br>";
+
+                    echo "<font color='red'>Ордер в минусовой зоне. Надо отменять!</font><br>";
+                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol);
+                    show($cancel);
+
+                    $order['id'] = NULL;
+                    $this->ChangeIDOrderBD($order, $OrderBD['id']);
+
                 }
 
-                if ($DELTA['nowdelta'] > 1){
-                    echo "Перевыставляем ордер на текущую цену<br>";
+                // Ордер у границы падения
+                if ( $DELTA['nowdelta'] > 1){
+                    echo "<font color='#663399'>Перевыставляем ордер на текущую цену если он НЕ откупился</font><br>";
+                    // Отменяем текущий ордер
+
+                    // Цена по которой ордер был выставлен
+                    echo "Цена по которой ордер выставлен: ".$OrderBD['latbid']."<br>";
+                    // Текущая цена
+                    //   echo "Текущая цена:".$pricenow."<br>";
+                    // Цена по которой хотим выставить ордер
+                    if ($OrderBD['side'] == "long") $pricebid = $this->GetPriceSide($this->symbol, "short") + $this->Basestep;
+                    if ($OrderBD['side'] == "short") $pricebid = $this->GetPriceSide($this->symbol, "long") - $this->Basestep;
+
+                    echo "Цена по которой хотим выставить:".$pricebid."<br>";
+
+                    // Если цена равна той которой хотим выставлять
+                    if ($pricebid == $OrderBD['latbid']){
+                        echo "Выставленная цена равна текущей цене в стакане<br>";
+                        continue;
+                    }
+
+                    // Если цена приближается к покупке нашего ордера, то ничего не делаем
+                    if ($OrderBD['side'] == "long" ){
+                        // Если цена которой хотим выставить ВЫШЕ цены которой УЖЕ выставлено
+                        if ($pricebid > $OrderBD['latbid']){
+                            echo "<font color='yellow'>Если цена которой хотим выставить ВЫШЕ цены которой УЖЕ выставлено</font><br>";
+                            continue;
+                        }
+                    }
+
+                    if ($OrderBD['side'] == "short" ){
+                        // Если цена которой хотим выставить НИЖЕ цены которой УЖЕ выставлено
+                        if ($pricebid < $OrderBD['latbid']) {
+                            echo "<font color='yellow'>Если цена которой хотим выставить НИЖЕ цены которой УЖЕ выставлено</font><br>";
+                            continue;
+                        }
+                    }
+
+                    echo "Цена ушла. Перевыставляем<br>";
+
+                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol);
+                    show($cancel);
+                    // Выставляем заново
+                    $order = $this->CreateReverseOrder($OrderBD); // Перевыставляем ордер на текущую цену если ордер НЕ откупился
+
                 }
-
-
-                echo "Ордер не откупился<br>";
 
 
 
@@ -714,7 +756,6 @@ class ShortController extends AppController {
 
         return true;
     }
-
 
 
 
@@ -959,7 +1000,7 @@ class ShortController extends AppController {
             $this->CloseCycle($TREK, "STOP"); // Закрытие цикла по стопу баланса
 
         }
- 
+
         if ($NOWPROFIT > $this->GOAL){
             $this->CloseCycle($TREK, "GOAL"); // Закрытие цикла по стопу баланса
         }
@@ -1058,8 +1099,7 @@ class ShortController extends AppController {
 
     }
 
-    private function CreateReverseOrder($price, $OrderBD , $type = ""){
-
+    private function CreateReverseOrder($OrderBD , $type = ""){
 
         $params = [
             'time_in_force' => "PostOnly",
@@ -1067,9 +1107,15 @@ class ShortController extends AppController {
             'reduce_only' => true,
         ];
 
-        if ($OrderBD['side'] == "long") $side = "sell";
+        if ($OrderBD['side'] == "long"){
+            $price = $this->GetPriceSide($this->symbol, "short") + $this->Basestep;
+            $side = "sell";
+        }
 
-        if ($OrderBD['side'] == "short") $side = "Buy";
+        if ($OrderBD['side'] == "short") {
+            $price = $this->GetPriceSide($this->symbol, "long") - $this->Basestep;
+            $side = "Buy";
+        }
 
 
         show($side);
@@ -1095,6 +1141,12 @@ class ShortController extends AppController {
 
 
         echo "<font color='#8b0000'>Создали реверсный ордер </font><br>";
+
+        $ARRCHANGE = [];
+        $ARRCHANGE['orderid'] = $order['id'];
+        $ARRCHANGE['latbid'] = $order['price'];
+        $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
 
 
 
