@@ -134,7 +134,7 @@ class LongController extends AppController {
     public function work(){
 
 
-        $TREK = $this->GetTreksBD();
+        $TREK = $this->GetTreksBD($this->side);
 
 
 
@@ -1066,15 +1066,6 @@ class LongController extends AppController {
     }
 
 
-    private function Restart(){
-
-
-
-
-        return true;
-    }
-
-
     private function CreateFirstOrder($OrderBD, $type, $TREK){
 
 
@@ -1364,58 +1355,12 @@ class LongController extends AppController {
     }
 
 
-    private function GetTreksBD()
+    private function GetTreksBD($side)
     {
-        $terk = R::findAll($this->namebdex, 'WHERE emailex =? AND workside=?', [$this->emailex, $this->side]);
+        $terk = R::findAll($this->namebdex, 'WHERE emailex =? AND workside=?', [$this->emailex, $side]);
         return $terk;
     }
 
-
-    private function GetUpdateOrder2($TREK, $OrderBD){
-
-
-        if ($TREK['workside'] == "short"){
-
-            // Получаем целевыу цену выставления ордера
-            $targetprice = $OrderBD['price'] + $TREK['step']*$this->maxposition;
-            // От текущего ордера отнимаем кол-во шагов равной дистанции
-            echo "Целевая цена выставления ордера".$targetprice."<br>";
-
-            // Ищем ордер который в данной ценовом диапазоне
-            // Берем ордера снизу ВВЕРХ
-            $TargetOrder = R::findOne("orders", 'WHERE idtrek =? AND side=? AND price=?', [$TREK['id'], $TREK['workside'], $targetprice]);
-
-            return $TargetOrder;
-            // Ищем ордер с данным шагом цены
-
-
-
-        }
-
-        if ($TREK['workside'] == "long"){
-
-            // Получаем целевыу цену выставления ордера
-            $targetprice = $OrderBD['price'] - $TREK['step']*$this->maxposition;
-            // От текущего ордера отнимаем кол-во шагов равной дистанции
-            echo "Целевая цена выставления ордера".$targetprice."<br>";
-
-            // Ищем ордер который в данной ценовом диапазоне
-            // Берем ордера снизу ВВЕРХ
-            $TargetOrder = R::findOne("orders", 'WHERE idtrek =? AND side=? AND price=?', [$TREK['id'], $TREK['workside'], $targetprice]);
-
-            return $TargetOrder;
-            // Ищем ордер с данным шагом цены
-
-
-        }
-
-
-
-
-        return NULL;
-
-
-    }
 
     private function GetOrdersBD($TREK, $status)
     {
@@ -1453,14 +1398,6 @@ class LongController extends AppController {
 
     }
 
-
-
-
-    private function GetAllOrdersBD($id)
-    {
-        $MASS = R::findAll("orders", 'WHERE idtrek =?', [$id]);
-        return $MASS;
-    }
 
 
 
