@@ -16,7 +16,7 @@ class LongController extends AppController {
     public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
 
     // Переменные для стратегии
-    public $summazahoda = 0.001; // Сумма захода в монете актива на 1 ордер
+    public $summazahoda = 0.002; // Сумма захода в монете актива на 1 ордер
 
     public $leverege = 90;
     public $symbol = "BTC/USDT";
@@ -28,9 +28,9 @@ class LongController extends AppController {
     private $RangeH = 49820;
     private $RangeL = 45180;
     private $side = "long"; // LONG или SHORT
-    private $step = 15; // Размер шага между ордерами
-    private $maxposition = 40; // Максимальный размер позиции (кол-во ордеров)
-    private $GOAL = 100;
+    private $step = 20; // Размер шага между ордерами
+    private $maxposition = 50; // Максимальный размер позиции (кол-во ордеров)
+
 
 
     // ТРЕЛЛИНГ ОРДЕРОВ
@@ -40,13 +40,15 @@ class LongController extends AppController {
 
 
     //СКОРИНГ
-    private $limitmoneta = 5000; // Лимит объемов торгов для скоринга
+    private $limitmoneta = 4000; // Лимит объемов торгов для скоринга
 
     // МАНИ МЕНЕДЖМЕНТ 1
-    private $stopl = 5; // Выключение всего скрипта при просадке депозита
+    private $GOAL = 10;
+    private $stopl = 8; // Выключение всего скрипта при просадке депозита
     private $maxprofit = 4; // Профит с которого начинаем трелить
     private $trellingstep = 2; // Профит с которого будем выходить
     private $timew = 30; // В минутах ожидание после завершение цикла
+
     private $timestopinterval = 120;
 
 
@@ -199,6 +201,7 @@ class LongController extends AppController {
         $rangel = $this->RangeL;
 
 
+
         $ARR['emailex'] = $this->emailex;
         $ARR['status'] = 1;
         $ARR['action'] = "ControlOrders";
@@ -214,6 +217,7 @@ class LongController extends AppController {
         $ARR['workside'] = $this->side;
         $ARR['startbalance'] = $this->BALANCE['total'];
         $ARR['maxprofit'] = 0;
+        $ARR['border'] = 0;
         $ARR['date'] = date("H:i:s");
         $ARR['stamp'] = time();
 
@@ -261,7 +265,7 @@ class LongController extends AppController {
         show($WorkSide);
 
 
-        // Контроль баланса
+        // Контроль ситуации
         $this->ControlBalance($TREK);
 
 
@@ -279,15 +283,6 @@ class LongController extends AppController {
             // Логирование выхода
             $this->CloseCycle($TREK, "LEAVE"); // Закрытие цикла при выходе из коридора
             return true;
-        }
-
-
-        if ($this->SCORING === FALSE){
-            echo "<b color='RED'>СКОРИНГ НЕ ПРОЙДЕН</b>";
-
-            $this->CloseCycle($TREK, "SCORING"); // Закрытие цикла при выходе из коридора
-
-            return false;
         }
 
 
@@ -347,14 +342,18 @@ class LongController extends AppController {
         }
 
         if ($LASTZAPIS['typeclose'] == "STOP"){
-            if ($timewait > $this->timestopinterval*6)  R::trash($TREK);
+            if ($timewait > $this->timestopinterval*3)  R::trash($TREK);
+            // Запускаем через время оиждания
+        }
+
+        if ($LASTZAPIS['typeclose'] == "BORDER"){
+            echo "TW:".$timewait." - ".$this->timew."<br>";
+            if ($timewait > $this->timew)  R::trash($TREK);
             // Запускаем через время оиждания
         }
 
         if ($LASTZAPIS['typeclose'] == "TRELLING"){
-
             echo "TW:".$timewait." - ".$this->timew."<br>";
-
             if ($timewait > $this->timew)  R::trash($TREK);
             // Запускаем через время оиждания
         }
@@ -517,6 +516,15 @@ class LongController extends AppController {
 
                 $DELTA = $this->GetDelta($TREK, $OrderBD, $pricenow); // Получение дельты на текущий ордер
                 show($DELTA);
+
+                if ($DELTA['nowdelta'] < $this->maxposition*(-1)*1.5){
+
+                    echo "<font color='red'><b>Вышли в нижнюю границу ордеров!</b></font><br>";
+                    $ARRTREK['border'] = 1;
+                    $this->ChangeARRinBD($ARRTREK, $TREK['id']);
+
+                }
+
 
                 if ($DELTA['nowdelta'] < 0){
 
@@ -1001,8 +1009,23 @@ class LongController extends AppController {
 
         }
 
+        // ЗАКРЫТИЕ ПО ГОЛУ
         if ($NOWPROFIT > $this->GOAL){
             $this->CloseCycle($TREK, "GOAL"); // Закрытие цикла по стопу баланса
+        }
+
+
+        // ЗАКРЫТИЕ ПО СКОРИНГУ
+        if ($this->SCORING === FALSE){
+            if ($DELTATRELLING > $this->stopl/2){
+                $this->CloseCycle($TREK, "SCORING");
+            }
+        }
+
+
+        // ЗАКРЫТИЕ ПО ГРАНИЦЕ КОРИДОРА
+        if ($TREK['border'] == 1){
+            $this->CloseCycle($TREK, "BORDER"); // Закрытие цикла по стопу баланса
         }
 
 
