@@ -25,13 +25,13 @@ class ShortController extends AppController {
     public $namebdex = "treks";
 
     // Переменные для стратегии
-    private $RangeH = 49820;
-    private $RangeL = 45180;
+    private $RangeH = 52000;
+    private $RangeL = 48000;
     private $side = "short"; // LONG или SHORT
-    private $step = 20; // Размер шага между ордерами
-    private $maxposition = 50; // Максимальный размер позиции (кол-во ордеров)
+    private $step = 30; // Размер шага между ордерами
+    private $maxposition = 40; // Максимальный размер позиции (кол-во ордеров)
 
-
+ 
 
     // ТРЕЛЛИНГ ОРДЕРОВ
     private $StartTrellingOrderSTEP = 4; // С какого шага начинаем треллить ордер
@@ -134,7 +134,7 @@ class ShortController extends AppController {
     public function work(){
 
 
-        $TREK = $this->GetTreksBD();
+        $TREK = $this->GetTreksBD($this->side);
 
 
 
@@ -1017,7 +1017,7 @@ class ShortController extends AppController {
 
         // ЗАКРЫТИЕ ПО СКОРИНГУ
         if ($this->SCORING === FALSE){
-            if ($NOWPROFIT*(-1) > $this->stopl/2){
+            if ($DELTATRELLING > $this->stopl/2){
                 $this->CloseCycle($TREK, "SCORING");
             }
         }
@@ -1063,15 +1063,6 @@ class ShortController extends AppController {
 
 
 
-    }
-
-
-    private function Restart(){
-
-
-
-
-        return true;
     }
 
 
@@ -1364,58 +1355,12 @@ class ShortController extends AppController {
     }
 
 
-    private function GetTreksBD()
+    private function GetTreksBD($side)
     {
-        $terk = R::findAll($this->namebdex, 'WHERE emailex =? AND workside=?', [$this->emailex, $this->side]);
+        $terk = R::findAll($this->namebdex, 'WHERE emailex =? AND workside=?', [$this->emailex, $side]);
         return $terk;
     }
 
-
-    private function GetUpdateOrder2($TREK, $OrderBD){
-
-
-        if ($TREK['workside'] == "short"){
-
-            // Получаем целевыу цену выставления ордера
-            $targetprice = $OrderBD['price'] + $TREK['step']*$this->maxposition;
-            // От текущего ордера отнимаем кол-во шагов равной дистанции
-            echo "Целевая цена выставления ордера".$targetprice."<br>";
-
-            // Ищем ордер который в данной ценовом диапазоне
-            // Берем ордера снизу ВВЕРХ
-            $TargetOrder = R::findOne("orders", 'WHERE idtrek =? AND side=? AND price=?', [$TREK['id'], $TREK['workside'], $targetprice]);
-
-            return $TargetOrder;
-            // Ищем ордер с данным шагом цены
-
-
-
-        }
-
-        if ($TREK['workside'] == "long"){
-
-            // Получаем целевыу цену выставления ордера
-            $targetprice = $OrderBD['price'] - $TREK['step']*$this->maxposition;
-            // От текущего ордера отнимаем кол-во шагов равной дистанции
-            echo "Целевая цена выставления ордера".$targetprice."<br>";
-
-            // Ищем ордер который в данной ценовом диапазоне
-            // Берем ордера снизу ВВЕРХ
-            $TargetOrder = R::findOne("orders", 'WHERE idtrek =? AND side=? AND price=?', [$TREK['id'], $TREK['workside'], $targetprice]);
-
-            return $TargetOrder;
-            // Ищем ордер с данным шагом цены
-
-
-        }
-
-
-
-
-        return NULL;
-
-
-    }
 
     private function GetOrdersBD($TREK, $status)
     {
@@ -1453,14 +1398,6 @@ class ShortController extends AppController {
 
     }
 
-
-
-
-    private function GetAllOrdersBD($id)
-    {
-        $MASS = R::findAll("orders", 'WHERE idtrek =?', [$id]);
-        return $MASS;
-    }
 
 
 
