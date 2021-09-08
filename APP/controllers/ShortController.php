@@ -24,8 +24,8 @@ class ShortController extends AppController {
     public $namebdex = "treks";
 
 
-    private $RangeH = 53000;
-    private $RangeL = 48000;
+    private $RangeH = 46900;
+    private $RangeL = 40000;
     private $side = "short"; // LONG или SHORT
     private $step = 50; // Размер шага между ордерами
 
@@ -36,7 +36,7 @@ class ShortController extends AppController {
     // Переменные для стратегии
     private $maxposition = 10; // Максимальный размер позиции
     private $skolz = 1; // ШАГ выше которого выставляется лимитник
-    private $stopdistantion = 100; // Дистанция после которой переставляем ордера
+    private $stopdistantion = 10; // Дистанция после которой переставляем ордера
 
 
 
