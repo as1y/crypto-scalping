@@ -6,7 +6,7 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class ShortController extends AppController {
+class UniController extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
@@ -14,6 +14,7 @@ class ShortController extends AppController {
 
     public $ApiKey = "U5I2AoIrTk4gBR7XLB";
     public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
+
 
     // Переменные для стратегии
     public $summazahoda = 0.001; // Сумма захода в монете актива на 1 ордер
@@ -24,19 +25,17 @@ class ShortController extends AppController {
     public $namebdex = "treks";
 
 
-    private $RangeH = 47400;
+    private $RangeH = 50800;
+    private $CENTER = 47400;
     private $RangeL = 39650;
-    private $side = "short"; // LONG или SHORT
     private $step = 50; // Размер шага между ордерами
-
-
-    // МАНИ МЕНЕДЖМЕНТ 1
+    public $Basestep = 0.5;
 
 
     // Переменные для стратегии
-    private $maxposition = 1; // Максимальный размер позиции
-    private $skolz = 1; // ШАГ выше которого выставляется лимитник
-    private $stopdistantion = 15; // Дистанция после которой переставляем ордера
+    private $OrderLine = 1;
+    private $DistanceOrder = 1; // Максимальный размер позиции
+    private $stopdistantion = 20; // Дистанция после которой переставляем ордера
 
 
 
@@ -151,23 +150,30 @@ class ShortController extends AppController {
 
         $delta = $this->RangeH - $this->RangeL;
 
-        $CountOrders = $delta/$this->step;
+        $CountOrders = round($delta/$this->step);
+
+
 
         // Проверка на минимальный шаг
         echo "ШАГ ЦЕНЫ: ".$this->step."<br>";
         echo "ШАГ ОРДЕРОВ: ".$CountOrders."<br>";
 
+
         $pricenow = $this->GetPriceSide($this->symbol, "long");
         $pricenow = round($pricenow);
 
 
-        $this->MASSORDERS = $this->GenerateStepPrice();
+        $this->MASSORDERS = $this->GenerateStepPrice($CountOrders);
+
+
 
         // Добавляем в массив ордеров сумму захода
         $this->CalculatePriceOrders();
 
+
         // Дополняем массив ордеров детальными значениями (сторона и quantity)
         $this->AddMassOrders();
+
 
         // Добавление ТРЕКА в БД
 
@@ -175,8 +181,8 @@ class ShortController extends AppController {
         $rangeh = $this->RangeH;
         $rangel = $this->RangeL;
 
-        $avg = ($rangeh + $rangel)/2;
-        $avg = round($avg);
+        $avg = $this->CENTER;
+
 
         $ARR['emailex'] = $this->emailex;
         $ARR['status'] = 1;
@@ -190,7 +196,7 @@ class ShortController extends AppController {
         $ARR['avg'] = $avg;
         $ARR['countplus'] = 0;
         $ARR['countstop'] = 0;
-        $ARR['workside'] = $this->side;
+        $ARR['workside'] = "long";
         $ARR['startbalance'] = $this->BALANCE['total'];
         $ARR['maxprofit'] = 0;
         $ARR['date'] = date("H:i:s");
@@ -202,17 +208,31 @@ class ShortController extends AppController {
         // Добавление ТРЕКА в БД
 
         // Добавление ордеров в БД
-        foreach ($this->MASSORDERS as $key=>$val){
+        foreach ($this->MASSORDERS['long'] as $key=>$val){
             $ARR = [];
             $ARR['idtrek'] = $idtrek;
             $ARR['stat'] = 1;
             $ARR['count'] = $key;
-            $ARR['side'] = $this->side;
+            $ARR['side'] = "long";
             $ARR['amount'] = $val['quantity'];
             $ARR['price'] = $val['price'];
             $ARR['first'] = 1;
             $this->AddARRinBD($ARR, "orders");
         }
+
+        foreach ($this->MASSORDERS['short'] as $key=>$val){
+            $ARR = [];
+            $ARR['idtrek'] = $idtrek;
+            $ARR['stat'] = 1;
+            $ARR['count'] = $key;
+            $ARR['side'] = "short";
+            $ARR['amount'] = $val['quantity'];
+            $ARR['price'] = $val['price'];
+            $ARR['first'] = 1;
+            $this->AddARRinBD($ARR, "orders");
+        }
+
+
 
         // Добавление ордеров в БД
         return true;
@@ -230,11 +250,11 @@ class ShortController extends AppController {
         $WorkSide = $this->GetWorkSide($pricenow, $TREK);
         show($WorkSide);
 
-
         // Вывод рабочей информации
         echo "<h3>Базовые параметры</h3>";
         echo "<b>Верхняя граница коридора:</b>".$TREK['rangeh']."<br>";
         echo "<b>Нижняя граница коридора:</b>".$TREK['rangel']."<br>";
+        echo "<b>Рабочая сторона:</b>".$WorkSide."<br>";
 
 
         if ($WorkSide == "HIEND" || $WorkSide == "LOWEND"){
@@ -243,6 +263,28 @@ class ShortController extends AppController {
             $this->CloseCycle($TREK, "LEAVE"); // Закрытие цикла при выходе из коридора
             return true;
         }
+
+
+        if ($TREK['workside'] != $WorkSide){
+            // На случай смены активной стороны
+
+            echo "<b>Переход из одной позиции в другую</b>";
+
+            // Отмена СТОП ордеров
+            $this->CancelStopOrd($TREK);
+
+
+            $ARRTREK['workside'] = $WorkSide;
+            $this->ChangeARRinBD($ARRTREK, $TREK['id']);
+
+            // Отмена ордеров с другой стороны
+
+
+            $TREK['workside'] = $WorkSide;
+
+            // На случай смены активной стороны
+        }
+
 
         // РАБОТА С ОРДЕРАМИ
         if ($TREK['action'] == "ControlOrders") $this->ActionControlOrders($TREK, $pricenow);
@@ -355,7 +397,7 @@ class ShortController extends AppController {
 //                        $price = $OrderBD['price'] - $TREK['step'];
 //                    }
 
-                $price = $OrderREST['price'];
+                $price = $OrderREST['last'];
                 if (!empty($OrderBD['lastprice'])) $price = $OrderBD['lastprice'];
 
                 echo "Текущая цена: ".$pricenow."<br>";
@@ -389,58 +431,6 @@ class ShortController extends AppController {
                 // Проверка на убыток ордера
 
 
-                if ( $distance >= $this->maxposition + $this->stopdistantion){
-
-
-
-
-                    echo "<b><font color='red'>ОРДЕР ВТОРОГО СТАТУСА ЛИШНИЙ НАДО ОТМЕНЯТЬ</font></b> <br>";
-
-                    // Проверяем его в РЕСТЕ
-
-
-                    // Отмена ТЕКУЩЕГО ОРДЕРА
-                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol);
-                    show($cancel);
-                    // задаем ордеру статус1
-                    $ARRCHANGE = [];
-                    $ARRCHANGE['stat'] = 1;
-                    $ARRCHANGE['orderid'] = NULL;
-                    $ARRCHANGE['type'] = NULL;
-                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
-                    // Отмена ТЕКУЩЕГО ОРДЕРА
-
-
-
-                    // ВЫСТАВЛЯЕМ ОРДЕР ВТОРОГО СТАТУСА
-                    echo "Текущая цена: ".$pricenow."<br>";
-                    // Определяем какой ордер ID заменить на второй статус
-                    $TargetOrder = $this->GetUpdateOrder2($TREK, $OrderBD);
-                    // show($TargetOrder);
-
-                    $price = $TargetOrder['price'];
-
-                    $order = $this->CreateReverseOrder($pricenow, $price, $TargetOrder, $TREK); // Отменили ордер 2го статуса по дистанции. Перевыставляем
-
-                    $ARRCHANGE = [];
-                    $ARRCHANGE['stat'] = 2;
-                    $ARRCHANGE['orderid'] = $order['id'];
-                    $ARRCHANGE['type'] = "STOP";
-                    $ARRCHANGE['lastprice'] = $OrderBD['lastprice'];
-
-                    $this->ChangeARRinBD($ARRCHANGE, $TargetOrder['id'], "orders");
-                    // ВЫСТАВЛЯЕМ ОРДЕР ВТОРОГО СТАТУСА
-
-                    $countplus = $TREK['countstop'] + 1;
-                    $ARRTREK['countstop'] = $countplus;
-                    $this->ChangeARRinBD($ARRTREK, $TREK['id']);
-
-
-
-                    continue;
-
-
-                }
 
                 echo "Ордер не откупился<br>";
 
@@ -493,6 +483,7 @@ class ShortController extends AppController {
 
             echo "#".$OrderBD['id']." СТАТУС ОРДЕРА <b>".$OrderBD['stat']."</b> - ".$OrderBD['orderid']." - <b>".$OrderBD['side']."</b> <br>";
             echo  "Дистанция по БД ".$distance."<br>";
+
 
 
             // Выставление первых ордеров
@@ -560,8 +551,14 @@ class ShortController extends AppController {
                 //  echo "Дистанция от цены:".$distance."<br>";
                 //  echo "Доступных ордеров для выставления:".$alloworder." <br>";
 
+                // ПАРАМЕТРЫ ОТМЕНЫ
+                $OTMENA = FALSE; // Параметр отмены ордера
+                $count2 = $this->CountActiveOrders($TREK); // Кол-во ордеров второго уровня
+                if ($count2 == 0 && $distance > $this->DistanceOrder) $OTMENA = TRUE;
+                if ($count2 > 0 && $distance > 4) $OTMENA = TRUE;
+
                 // Проверка на дистанцию
-                if ($distance >= $this->maxposition){
+                if ($OTMENA == TRUE){
 
                     echo "<b><font color='red'>ОРДЕР ЛИШНИЙ НАДО ОТМЕНЯТЬ</font></b> <br>";
 
@@ -573,16 +570,13 @@ class ShortController extends AppController {
                     show($cancel);
 
                     $order['id'] = NULL;
+                    $order['first'] = 1;
                     $this->ChangeIDOrderBD($order, $OrderBD['id']);
 
                     continue;
 
 
                 }
-
-
-
-
 
 
 
@@ -598,10 +592,10 @@ class ShortController extends AppController {
             $pricenow = $this->GetPriceSide($this->symbol, $OrderBD['side']);
 
             if ($OrderBD['side'] == "long")  {
-                $price = $OrderREST['last'] + $TREK['step'];
+                $price = $OrderREST['last'] + $TREK['step'] - $this->Basestep;
             }
             if ($OrderBD['side'] == "short")  {
-                $price = $OrderREST['last'] - $TREK['step'];
+                $price = $OrderREST['last'] - $TREK['step'] + $this->Basestep;
             }
 
 
@@ -631,6 +625,7 @@ class ShortController extends AppController {
             $ARRCHANGE['type'] = "LIMIT";
             $ARRCHANGE['first'] = 0;
             $ARRCHANGE['lastprice'] = $OrderREST['last'];
+            $ARRCHANGE['positionprice'] = $price;
 
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
@@ -701,6 +696,41 @@ class ShortController extends AppController {
 
 
 
+
+    private function CancelStopOrd($TREK){
+
+
+        echo "Отмена стоп ордеров при переходе <br>";
+
+        // Отмена стоп ордеров
+        $OrdersBD = R::findAll("orders", 'WHERE idtrek =? AND side=? AND stat=?', [$TREK['id'], $TREK['workside'], 1]);
+
+        foreach ($OrdersBD as $key=>$ORD){
+
+            if ($ORD['orderid'] == NULL) continue;
+
+            $params = [
+                'stop_order_id' => $ORD['orderid'],
+            ];
+            // Функция отмены стоп ордера
+            $this->EXCHANGECCXT->cancel_order($ORD['orderid'], $this->symbol,$params) ;
+            $ORD->orderid = NULL;
+            $ORD->first = 1;
+            R::store($ORD);
+
+
+        }
+
+        // очищене обычных ордеров
+
+
+
+
+
+        return true;
+
+
+    }
 
 
     private function CloseCycle($TREK, $typclose =""){
@@ -788,9 +818,6 @@ class ShortController extends AppController {
     private function CheckFirstOrder($TREK, $pricenow, $OrderBD, $distance){
 
 
-        // Анализ на выставления оредера по СКОРИНГУ
-        $STEP = $TREK['step']*$this->skolz;
-        $STEP = round($STEP);
 
 
         // Проверка на дистанцию
@@ -798,80 +825,55 @@ class ShortController extends AppController {
 
 
         //Базовая проверка дистанции
-        if ($distance >= ($this->maxposition + 1)){
+        if ($distance != 0){
             echo "Ордер находиться вне допустимой дистанции<br>";
             return false;
         }
 
-        // Если в рамках дистанции, то считаем дистанцию на которую можно уйти с учетом ордеров второго уровня
+        echo "<font color='#8b0000'>В ЗОНЕ ВЫСТАВЛЕНИЯ</font><br>";
+
+        $OrdersSTAT2 = $this->GetOrdersBD($TREK, 2);
 
 
-        $count1 = $this->CountActiveOrders($TREK, 1); // Кол-во ордеров первого уровня
-        $count2 = $this->CountActiveOrders($TREK); // Кол-во ордеров второго уровня
-        $allow1status = $this->maxposition - $count2; // Свободных слотов на кол-во ордеров первого уровня
-        $allow1status = $allow1status - $count1;
+        if (count($OrdersSTAT2) > 0){
 
-        echo  "Можем выставить ".$allow1status." ордеров<br>";
+            // Если расстояние от низкого больше 3, то пропускаем
+           // if (count($OrdersSTAT2) == 1) return false;
 
-        if ($allow1status == 0) {
-            echo "Достигнут лимит максимальных кол-ва ордеров 2-го уровня<br>";
-            return false;
+            $LastElemnt = end($OrdersSTAT2);
+
+            if ($TREK['workside'] == "long"){
+                // Дистанция
+                $distance = $LastElemnt['positionprice'] - $pricenow;
+                $distance = abs($distance);
+                $distance = $distance/$TREK['step'];
+                $distance = round($distance);
+
+                echo "<font color='red'>Дистанция до последнего лимитника - ".$distance."</font><br>";
+
+                if ($distance <= 3) return false;
+            }
+
+
+
+
         }
 
 
         if ($TREK['workside'] == "long"){
-
-            if ($OrderBD['first'] == 1){
-
-                if ($pricenow < $OrderBD['price']){
-                    // Приближаемся к зоне покупки
-                    if ($pricenow > ($OrderBD['price'] - $TREK['step']*3) ) return "MARKET";
-                }
-
-            }
-            if ($OrderBD['first'] == 0){
-                if ($pricenow < $OrderBD['price']){
-                    // Приближаемся к зоне покупки
-                    if ($pricenow < ($OrderBD['price'] - $TREK['step']*2)) return "MARKET";
-
-
-                }
-            }
+            if ($pricenow < $OrderBD['price'] ) return "MARKET";
         }
+
         if ($TREK['workside'] == "short"){
-
-            if ($OrderBD['first'] == 1){
-                if ($pricenow > $OrderBD['price']){
-                    // Приближаемся к зоне покупки
-                    if ($pricenow < ($OrderBD['price'] + $TREK['step']*3) ) return "MARKET";
-                }
-
-            }
-
-            if ($OrderBD['first'] == 0){
-                echo "НОВЫЙ ОРДЕР<br>";
-                $ss = $OrderBD['price'] + $TREK['step']*0.8;
-                echo "Текущая цена:".$pricenow."<br>";
-                echo "Цена ордера:".$OrderBD['price']."<br>";
-                echo "Рынок должны выставлять при цене".$ss."<br>";
-
-                if ($pricenow > $OrderBD['price']){
-                    // Приближаемся к зоне покупки
-                    if ($pricenow > ($OrderBD['price'] + $TREK['step']*2)) return "MARKET";
-
-
-                }
-            }
-
+            if ($pricenow > $OrderBD['price'] ) return "MARKET";
         }
 
 
+      //  $count1 = $this->CountActiveOrders($TREK, 1); // Кол-во ордеров первого уровня
+      //  $count2 = $this->CountActiveOrders($TREK, 2); // Кол-во ордеров второго уровня
 
 
-
-
-
-        echo "Цена не корректна для выставления ордеров в данном коридоре<br>";
+       echo "Цена не корректна для выставления ордеров в данном коридоре<br>";
 
 
         return false;
@@ -907,13 +909,13 @@ class ShortController extends AppController {
 
     private function GetWorkSide($pricenow, $TREK){
 
-        echo "Направление движения:".$TREK['side']."<br>";
 
         if ($pricenow > $TREK['rangeh'] && $TREK['workside'] == "long" ) return "HIEND";
         if ($pricenow < $TREK['rangel'] && $TREK['workside'] == "short" ) return "LOWEND";
 
+        if ($pricenow > $TREK['avg'] ) return "long";
+        if ($pricenow < $TREK['avg'] ) return "short";
 
-        echo "<hr>";
 
         return $TREK['side'];
 
@@ -980,12 +982,12 @@ class ShortController extends AppController {
         ];
 
         if ($OrderBD['side'] == "long") {
-            if ($pricenow > $price) $price = $pricenow + round($TREK['step']/2);
+            if ($pricenow > $price) $price = $pricenow + round($TREK['step']);
             $side = "sell";
         }
 
         if ($OrderBD['side'] == "short") {
-            if ($pricenow < $price) $price = $pricenow - round($TREK['step']/2);
+            if ($pricenow < $price) $price = $pricenow - round($TREK['step']);
             $side = "Buy";
         }
 
@@ -994,6 +996,16 @@ class ShortController extends AppController {
         show($OrderBD['amount']);
         show($price);
         show($params);
+
+
+        if ($type == "MARKET"){
+            $param = [
+                'reduce_only' => true,
+            ];
+
+            $order = $this->EXCHANGECCXT->create_order($this->symbol,"market",$side, $OrderBD['amount'], null, $param);
+            return $order;
+        }
 
 
         $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$side, $OrderBD['amount'] , $price, $params);
@@ -1093,25 +1105,13 @@ class ShortController extends AppController {
 
     public function AddMassOrders(){
 
-//        foreach ($this->MASSORDERS['long'] as $key=>$val){
-//            $quantity = $this->GetQuantityBTC($val['summazahoda'] , $val['price']);
-//            $this->MASSORDERS['long'][$key]['quantity'] = $quantity;
-//        }
-//
-//        foreach ($this->MASSORDERS['short'] as $key=>$val){
-//            $quantity = $this->GetQuantityBTC($val['summazahoda'] , $val['price']);
-//            $this->MASSORDERS['short'][$key]['quantity'] = $quantity;
-//        }
-
-
-        foreach ($this->MASSORDERS as $key=>$val){
-            $this->MASSORDERS[$key]['quantity'] = $this->summazahoda;
+        foreach ($this->MASSORDERS['long'] as $key=>$val){
+            $this->MASSORDERS['long'][$key]['quantity'] = $this->summazahoda;
         }
 
-
-
-
-
+        foreach ($this->MASSORDERS['short'] as $key=>$val){
+            $this->MASSORDERS['short'][$key]['quantity'] = $this->summazahoda;
+        }
 
 
         return true;
@@ -1119,21 +1119,16 @@ class ShortController extends AppController {
 
     public function CalculatePriceOrders(){
 
-//        $allbal = $this->summazahoda * $this->leverege;
-//
-//        $zahod = round($allbal/$this->CountOrders);
-//
-//        if ($zahod < 30){
-//            echo "Размер захода на 1 ордер".$zahod."<br>";
-//            echo "Не хватает баланса на такое кол-во ордеров";
-//            exit();
-//        }
-
         $zahod = $this->summazahoda;
 
-        foreach ($this->MASSORDERS as $key=>$val){
-            $this->MASSORDERS[$key]['summazahoda'] = $zahod;
+        foreach ($this->MASSORDERS['long'] as $key=>$val){
+            $this->MASSORDERS['long'][$key]['summazahoda'] = $zahod;
         }
+
+        foreach ($this->MASSORDERS['short'] as $key=>$val){
+            $this->MASSORDERS['short'][$key]['summazahoda'] = $zahod;
+        }
+
 
 
 
@@ -1141,16 +1136,17 @@ class ShortController extends AppController {
         return true;
     }
 
-    public function GenerateStepPrice(){
+    public function GenerateStepPrice($CountOrders){
         $MASS = [];
 
-        $delta = $this->RangeH - $this->RangeL;
-        $steps = $delta/$this->step;
+        for ($i = 1; $i <= $CountOrders; $i++) {
+            $MASS['long'][]['price'] = $this->CENTER + $this->step*$i;
+        }
 
-        echo "<hr>";
+        $MASS['avg']['price'] = $this->CENTER;
 
-        for ($i = 1; $i <= $steps; $i++) {
-            $MASS[]['price'] = $this->RangeL + $this->step*$i;
+        for ($i = 1; $i <= $CountOrders; $i++) {
+            $MASS['short'][]['price'] = $this->CENTER - $this->step*$i;
         }
 
 
@@ -1196,7 +1192,7 @@ class ShortController extends AppController {
 
     private function GetTreksBD()
     {
-        $terk = R::findAll($this->namebdex, 'WHERE emailex =? AND workside=?', [$this->emailex, $this->side]);
+        $terk = R::findAll($this->namebdex, 'WHERE emailex =?', [$this->emailex]);
         return $terk;
     }
 
