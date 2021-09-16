@@ -26,7 +26,7 @@ class UniController extends AppController {
 
 
     private $RangeH = 50800;
-    private $CENTER = 47400;
+    private $CENTER = 46000;
     private $RangeL = 39650;
     private $step = 50; // Размер шага между ордерами
     public $Basestep = 0.5;
@@ -553,9 +553,17 @@ class UniController extends AppController {
 
                 // ПАРАМЕТРЫ ОТМЕНЫ
                 $OTMENA = FALSE; // Параметр отмены ордера
-                $count2 = $this->CountActiveOrders($TREK); // Кол-во ордеров второго уровня
-                if ($count2 == 0 && $distance > $this->DistanceOrder) $OTMENA = TRUE;
-                if ($count2 > 0 && $distance > 4) $OTMENA = TRUE;
+                $count1 = $this->CountActiveOrders($TREK,1); // Кол-во ордеров первого уровня
+                $count2 = $this->CountActiveOrders($TREK,2); // Кол-во ордеров второго уровня
+
+                echo "1ggg";
+                show($count1);
+                show($count2);
+                // Если ордеров первого уровня больше одного, то включаем
+                if ( $count1 == 1 && $distance > 1 ) $OTMENA = TRUE;
+
+               // if ($count2 == 0 && $distance > $this->DistanceOrder) $OTMENA = TRUE;
+               // if ($count2 > 0 && $distance > 3) $OTMENA = TRUE;
 
                 // Проверка на дистанцию
                 if ($OTMENA == TRUE){
@@ -817,60 +825,73 @@ class UniController extends AppController {
 
     private function CheckFirstOrder($TREK, $pricenow, $OrderBD, $distance){
 
-
-
+          $count1 = $this->CountActiveOrders($TREK, 1); // Кол-во ордеров первого уровня
+          $count2 = $this->CountActiveOrders($TREK, 2); // Кол-во ордеров второго уровня
 
         // Проверка на дистанцию
         echo "Расстояние ордера до цены : ".$distance."<br>";
 
-
-        //Базовая проверка дистанции
-        if ($distance != 0){
-            echo "Ордер находиться вне допустимой дистанции<br>";
-            return false;
+        // Самое первое выставление
+        if ($count1 == 0 && $count2 == 0 && $distance == 1){
+            if ($TREK['workside'] == "long"){
+                if ($pricenow < $OrderBD['price'] ) return "MARKET";
+            }
+            if ($TREK['workside'] == "short"){
+                if ($pricenow > $OrderBD['price'] ) return "MARKET";
+            }
         }
 
-        echo "<font color='#8b0000'>В ЗОНЕ ВЫСТАВЛЕНИЯ</font><br>";
-
-        $OrdersSTAT2 = $this->GetOrdersBD($TREK, 2);
-
-
-        if (count($OrdersSTAT2) > 0){
-
-            // Если расстояние от низкого больше 3, то пропускаем
-           // if (count($OrdersSTAT2) == 1) return false;
+        if ($count2 > 0){
+            echo "Имеються ордера второго статуса!<br>";
+            $OrdersSTAT2 = $this->GetOrdersBD($TREK, 2);
 
             $LastElemnt = end($OrdersSTAT2);
 
+            echo "Цена выставленного ордера статус2: ".$LastElemnt['positionprice']."<br>";
             if ($TREK['workside'] == "long"){
                 // Дистанция
-                $distance = $LastElemnt['positionprice'] - $pricenow;
-                $distance = abs($distance);
-                $distance = $distance/$TREK['step'];
-                $distance = round($distance);
+                $DistanceOrder = $LastElemnt['positionprice'] - $pricenow;
 
-                echo "<font color='red'>Дистанция до последнего лимитника - ".$distance."</font><br>";
+                $DistanceOrder = $DistanceOrder/$TREK['step'];
+                $DistanceOrder = round($DistanceOrder);
 
-                if ($distance <= 3) return false;
+                echo "<font color='red'>Дистанция от последнего лимитника : ".$DistanceOrder."</font><br>";
+                echo "<font color='green'>Дистанция по БД : ".$distance."</font><br>";
+
+
             }
 
 
 
+            echo "<font color='#8b0000'>В ЗОНЕ ВЫСТАВЛЕНИЯ</font><br>";
+
+
+            return false;
 
         }
 
 
-        if ($TREK['workside'] == "long"){
-            if ($pricenow < $OrderBD['price'] ) return "MARKET";
+
+        return false;
+
+        // Нет вторых ордеро. Первое выставление
+        if ($count2 == 0 && $count1 < 2){
+            echo "Выставление первого ордера!!<br>";
+            //Базовая проверка дистанции
+            if ($distance != 1){
+                echo "Ордер находиться вне допустимой дистанции<br>";
+                return false;
+            }
+
         }
 
-        if ($TREK['workside'] == "short"){
-            if ($pricenow > $OrderBD['price'] ) return "MARKET";
-        }
 
 
-      //  $count1 = $this->CountActiveOrders($TREK, 1); // Кол-во ордеров первого уровня
-      //  $count2 = $this->CountActiveOrders($TREK, 2); // Кол-во ордеров второго уровня
+
+
+
+
+
 
 
        echo "Цена не корректна для выставления ордеров в данном коридоре<br>";
