@@ -562,6 +562,7 @@ class UniController extends AppController {
                 // Если ордеров первого уровня больше одного, то включаем
                 if ( $count1 == 1 && $distance > 1 ) $OTMENA = TRUE;
 
+             //   if ($count1 == 1 && $count2 > 1 && $distance > 0) $OTMENA = TRUE;
                // if ($count2 == 0 && $distance > $this->DistanceOrder) $OTMENA = TRUE;
                // if ($count2 > 0 && $distance > 3) $OTMENA = TRUE;
 
@@ -845,7 +846,7 @@ class UniController extends AppController {
             echo "Имеються ордера второго статуса!<br>";
             $OrdersSTAT2 = $this->GetOrdersBD($TREK, 2);
 
-            $LastElemnt = end($OrdersSTAT2);
+            $LastElemnt = current($OrdersSTAT2);
 
             echo "Цена выставленного ордера статус2: ".$LastElemnt['positionprice']."<br>";
             if ($TREK['workside'] == "long"){
