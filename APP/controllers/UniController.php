@@ -841,7 +841,7 @@ class UniController extends AppController {
             }
         }
 
-        if ($count2 > 0){
+        if ($count2 > 0 && $count1 == 0){
             echo "Имеються ордера второго статуса!<br>";
             $OrdersSTAT2 = $this->GetOrdersBD($TREK, 2);
 
@@ -856,14 +856,25 @@ class UniController extends AppController {
                 $DistanceOrder = round($DistanceOrder);
 
                 echo "<font color='red'>Дистанция от последнего лимитника : ".$DistanceOrder."</font><br>";
-                echo "<font color='green'>Дистанция по БД : ".$distance."</font><br>";
+                echo "<font color='green'>Дистанция по БД : ".$distance."-</font><br>";
+
+
+                if ($distance == 1 && $DistanceOrder > 2){
+                    echo "<font color='#8b0000'>В ЗОНЕ ВЫСТАВЛЕНИЯ</font><br>";
+
+                    if ($TREK['workside'] == "long"){
+                        if ($pricenow < $OrderBD['price'] ) return "MARKET";
+                    }
+                    if ($TREK['workside'] == "short"){
+                        if ($pricenow > $OrderBD['price'] ) return "MARKET";
+                    }
+                }
 
 
             }
 
 
 
-            echo "<font color='#8b0000'>В ЗОНЕ ВЫСТАВЛЕНИЯ</font><br>";
 
 
             return false;
@@ -909,14 +920,14 @@ class UniController extends AppController {
 
         if ($TREK['workside'] == "long"){
             $distance = $OrderBD['price'] - $pricenow;
-            $distance = abs($distance);
+  //          $distance = abs($distance);
             $distance = $distance/$TREK['step'];
             $distance = round($distance);
         }
 
         if ($TREK['workside'] == "short"){
             $distance = $OrderBD['price'] - $pricenow;
-            $distance = abs($distance);
+   //         $distance = abs($distance);
             $distance = $distance/$TREK['step'];
             $distance = round($distance);
         }
