@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/crypto(raskrutkaweb-scalping).iml" filepath="$PROJECT_DIR$/.idea/crypto(raskrutkaweb-scalping).iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/crypto-scalping.iml" filepath="$PROJECT_DIR$/.idea/crypto-scalping.iml" />
     </modules>
   </component>
 </project>

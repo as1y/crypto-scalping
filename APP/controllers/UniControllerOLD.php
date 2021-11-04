@@ -12,10 +12,8 @@ class UniController extends AppController {
     public $BreadcrumbsControllerUrl = "/panel";
 
 
-    // BINANCE
-
-    public $ApiKey = "l2xzXGEQVJcYKk1uNB1ynDPATLmL9oUEMH0zlCLZ4F9QzQ7UaFkFLTFzQdEFpDBl";
-    public $SecretKey = "hJOj8RnPJwf0Y4zmcDqGLPrdIGsGvx8NDMmwidKBTSCbNLK3qqzI9Vainm77YSf6";
+    public $ApiKey = "U5I2AoIrTk4gBR7XLB";
+    public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
 
 
     // Переменные для стратегии
@@ -30,7 +28,7 @@ class UniController extends AppController {
     private $lot = 0.001; // Базовый заход
     private $RangeH = 70000;
     private $RangeL = 50000;
-    private $step = 30; // Размер шага между ордерами
+    private $step = 50; // Размер шага между ордерами
     private $stoploss = 4; // Размер шага между ордерами
     private $maxposition = 3;
     private      $maVAL = 14; // Коэффицент для МА
@@ -84,14 +82,14 @@ class UniController extends AppController {
         //  show(\ccxt\Exchange::$exchanges); // print a list of all available exchange classes
 
         //Запуск CCXT
-        $this->EXCHANGECCXT = new \ccxt\binance (array(
+        $this->EXCHANGECCXT = new \ccxt\bybit (array(
             'apiKey' => $this->ApiKey,
             'secret' => $this->SecretKey,
             'timeout' => 30000,
             'enableRateLimit' => true,
-   //         'marketType' => "linear",
+            'marketType' => "linear",
             'options' => array(
-                'defaultType' => 'future'
+                // 'code'=> 'USDT',
                 //  'marketType' => "linear"
             )
         ));
@@ -281,21 +279,17 @@ class UniController extends AppController {
         }
 
 
+        // ОБРАБОТКА ОРДЕРОВ СТАТУСА 1
+        $this->WorkStat1($TREK, $AllOrdersREST, $pricenow);
+        // ОБРАБОТКА ОРДЕРОВ СТАТУСА 1
 
-        // ОБРАБОТКА ОРДЕРОВ СТАТУСА 1
-      //  $this->WorkStat1($TREK, $pricenow);
-        // ОБРАБОТКА ОРДЕРОВ СТАТУСА 1
+        exit("1111");
+
+        echo "<hr>";
 
         // ОБРАБОТКА ОРДЕРОВ СТАТУСА 2
         $this->WorkStat2($TREK, $AllOrdersREST, $pricenow);
         // ОБРАБОТКА ОРДЕРОВ СТАТУСА 2
-
-
-        // ОБРАБОТКА ОРДЕРОВ СТАТУСА 3
-        $this->WorkStat3($TREK, $AllOrdersREST, $pricenow);
-        // ОБРАБОТКА ОРДЕРОВ СТАТУСА 3
-
-
 
 
 
@@ -304,9 +298,142 @@ class UniController extends AppController {
     }
 
 
+    private function WorkStat2($TREK, $AllOrdersREST, $pricenow){
 
-    // СТАТУС1 - ВЫСТАВЛЕНИЕ МАРКЕТ ОРДЕРОВ
-    private function WorkStat1($TREK, $pricenow){
+        $OrdersBD = $this->GetOrdersBD($TREK, 2);
+        echo "<h3>ОБРАБОТКА ОРДЕРОВ СТАТУСА 2</h3>";
+        // Ордер на наращивание позиции
+
+
+
+        foreach ($OrdersBD as $key=>$OrderBD) {
+
+            // Проверка на актуальность ордеров обработки ордера
+            $distance = $this->CheckDistance($TREK, $pricenow, $OrderBD);
+            // Проверка на актуальность ордеров обработки ордера
+
+            echo "#".$OrderBD['id']." СТАТУС ОРДЕРА <b>".$OrderBD['stat']."</b> - ".$OrderBD['orderid']." - <b>".$OrderBD['side']."</b> <br>";
+            echo  "Дистанция по БД: ".$distance."<br>";
+
+            // Работа с ордерами вторго статуса
+
+
+
+            echo "<b>Работа СТАТУС 2</b><br>";
+            echo "Информация об ордере из REST<br>";
+
+
+            $OrderREST = $this->GetOneOrderREST($OrderBD['orderid'], $AllOrdersREST); // Ордер РЕСТ статус 2
+
+            // show($OrderREST);
+
+            // Проверка на cancel (перевыставление)
+            if ($OrderREST['status'] == "Cancelled"){
+
+                echo "<font color='#8b0000'>ОРДЕР отменен (canceled)!!! (второй статус) </font> <br>";
+                show($OrderREST);
+
+
+                $pricenow = $this->GetPriceSide($this->symbol, $OrderBD['side']);
+
+//                    if ($OrderBD['side'] == "long")  {
+//                        $price = $OrderBD['price'] + $TREK['step'];
+//                    }
+//                    if ($OrderBD['side'] == "short")  {
+//                        $price = $OrderBD['price'] - $TREK['step'];
+//                    }
+
+                $price = $OrderREST['last'];
+                if (!empty($OrderBD['lastprice'])) $price = $OrderBD['lastprice'];
+
+                echo "Текущая цена: ".$pricenow."<br>";
+                echo "Мы перевыставляем ордер по цене: ".$price."<br>";
+
+                echo "Перевыставляем ордер на 2-м статусе! Обнуляем ID ордера!  <br>";
+
+//                    echo "ЦЕНА СЕЙЧАС<br>";
+//                    show($pricenow);
+//                    echo "ЦЕНА ОРДЕРА<br>";
+//                    show($price);
+//                    echo "РЕСТ<br>";
+//                    show($OrderREST);
+//                    echo "БД<br>";
+//                    show($OrderBD);
+//                    echo "ТРЕК<br>";
+//                    show($TREK);
+
+                $order =  $this->CreateReverseOrder($pricenow, $price, $OrderBD, $TREK); //Отмена в статусе2
+
+                $this->ChangeIDOrderBD($order, $OrderBD['id']);
+                continue;
+
+            }
+
+            // Проверка на исоплненность
+            if ($this->OrderControl($OrderREST) === FALSE){
+                // Проверка ОРДЕРА НА СТОП!!!
+
+
+                // Проверка на убыток ордера
+                if ( $distance >=  $this->stopdistantion){
+
+
+                    echo "<b><font color='red'>ОРДЕР ВТОРОГО СТАТУСА ЛИШНИЙ НАДО ОТМЕНЯТЬ</font></b> <br>";
+
+                    continue;
+
+                    // Отмена ТЕКУЩЕГО ОРДЕРА
+                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol);
+                    show($cancel);
+                    // задаем ордеру статус1
+                    $ARRCHANGE = [];
+                    $ARRCHANGE['stat'] = 1;
+                    $ARRCHANGE['orderid'] = NULL;
+                    $ARRCHANGE['type'] = NULL;
+                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+                    // Отмена ТЕКУЩЕГО ОРДЕРА
+
+
+
+
+                }
+
+
+                echo "Ордер не откупился<br>";
+
+
+
+                continue;
+
+            }
+
+
+            echo "<font color='green'>Ордер статуса 2 исполнен</font><br>";
+            // ОРДЕР ИСПОЛНЕН
+
+
+            $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST); // Исполнен статус 2
+
+            $countplus = $TREK['countplus'] + 1;
+            $ARRTREK['countplus'] = $countplus;
+            $this->ChangeARRinBD($ARRTREK, $TREK['id']);
+
+
+            $ARRCHANGE = [];
+            $ARRCHANGE['stat'] = 1;
+            $ARRCHANGE['orderid'] = NULL;
+            $ARRCHANGE['type'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+            echo "<hr>";
+        }
+
+
+
+        return true;
+    }
+
+    private function WorkStat1($TREK, $AllOrdersREST, $pricenow){
 
         // ОБРАБОТКА ОРДЕРОВ СТАТУСА 1
         $OrdersBD = $this->GetOrdersBD($TREK, 1);
@@ -320,18 +447,17 @@ class UniController extends AppController {
         // Ордер на наращивание позиции
         foreach ($OrdersBD as $key=>$OrderBD) {
 
-
             // Проверка на актуальность ордеров обработки ордера
-            $distance = $this->CheckDistance($pricenow, $OrderBD);
+            $distance = $this->CheckDistance("long", $pricenow, $OrderBD);
             // Проверка на актуальность ордеров обработки ордера
 
             echo "#".$OrderBD['id']." СТАТУС ОРДЕРА <b>".$OrderBD['stat']."</b> - ".$OrderBD['orderid']." - <b>".$OrderBD['side']."</b> <br>";
             echo  "Дистанция по БД ".$distance."<br>";
 
-            // Определение LONG/SHORT
 
             // Выставление первых ордеров
             if ($OrderBD['orderid'] == NULL){
+
 
                 echo "Текущая цена".$pricenow."<br>";
                 echo "Цена для выставления ордера".$OrderBD['price']."<br>";
@@ -342,26 +468,148 @@ class UniController extends AppController {
                 // Скоринг на первичное выставление выставление
 
                 // Счетчик ордеров с неедупдейтам
+                echo "Откупаем ордер по типу:<br>";
+                var_dump($resultscoring);
+                echo "<br>";
+                if ($resultscoring === FALSE) continue;
 
-                if ($resultscoring['result'] === FALSE) continue;
 
 
                 $order = $this->CreateFirstOrder($OrderBD, $resultscoring, $TREK);
-
                 // Записываем
-                 show($order);
+                // show($order);
+
 
                 $ARRCHANGE = [];
                 $ARRCHANGE['orderid'] = $order['id'];
-                $ARRCHANGE['status'] = 2;
-                $ARRCHANGE['type'] = $resultscoring['result'];
-             //   $ARRCHANGE['lastprice'] = $order['last_exec_price'];
+                $ARRCHANGE['type'] = $resultscoring;
                 $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
 
-
+                continue;
             }
 
+
+            echo "Информация об ордере из REST<br>";
+            $OrderREST = $this->GetOneOrderREST($OrderBD['orderid'], $AllOrdersREST); // Ордер РЕСТ статус 1
+
+
+            // ВНЕЗАПНАЯ ПОПАДАНИЕ В СТАТУС "CANCELED"
+            if ($OrderREST['status'] == "Cancelled"){
+                echo "<font color='#8b0000'>ОРДЕР отменен (canceled)!!! </font> <br>";
+                show($OrderREST);
+                echo "Обнуляем ID ордера!  <br>";
+                $order['id'] = NULL;
+                $this->ChangeIDOrderBD($order, $OrderBD['id']);
+                continue;
+            }
+
+
+            // ОРДЕР НЕ ОТКУПИЛСЯ
+            if ($this->OrderControl($OrderREST) === FALSE){
+                echo "ОРДЕР не откупился <br>";
+
+
+                $distance = $this->CheckDistance($TREK, $pricenow, $OrderBD);
+                echo "Расстояние ордера до цены : ".$distance."<br>";
+
+                // Кол-во ордеров в статусе 2
+                // $count = $this->CountActiveOrders($TREK);
+                //  $alloworder = $this->maxposition - $count;
+                //  echo "Дистанция от цены:".$distance."<br>";
+                //  echo "Доступных ордеров для выставления:".$alloworder." <br>";
+
+                // ПАРАМЕТРЫ ОТМЕНЫ
+                $OTMENA = FALSE; // Параметр отмены ордера
+                $count1 = $this->CountActiveOrders($TREK,1); // Кол-во ордеров первого уровня
+                $count2 = $this->CountActiveOrders($TREK,2); // Кол-во ордеров второго уровня
+
+                echo "1ggg";
+                show($count1);
+                show($count2);
+                // Если ордеров первого уровня больше одного, то включаем
+                if ( $count1 == 1 && $distance > 1 ) $OTMENA = TRUE;
+
+                //   if ($count1 == 1 && $count2 > 1 && $distance > 0) $OTMENA = TRUE;
+                // if ($count2 == 0 && $distance > $this->DistanceOrder) $OTMENA = TRUE;
+                // if ($count2 > 0 && $distance > 3) $OTMENA = TRUE;
+
+                // Проверка на дистанцию
+                if ($OTMENA == TRUE){
+
+                    echo "<b><font color='red'>ОРДЕР ЛИШНИЙ НАДО ОТМЕНЯТЬ</font></b> <br>";
+
+                    $params = [
+                        'stop_order_id' => $OrderBD['orderid'],
+                    ];
+                    // Функция отмены стоп ордера
+                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol,$params) ;
+                    show($cancel);
+
+                    $order['id'] = NULL;
+                    $order['first'] = 1;
+                    $this->ChangeIDOrderBD($order, $OrderBD['id']);
+
+                    continue;
+
+
+                }
+
+
+
+
+                continue;
+            }
+
+
+
+            // ОРДЕР ОТКУПИОСЯ. ВЫСТАВЛЯЕМ РЕВЕРС
+
+            // Цена по которой нужно выставлять реверсный
+            $pricenow = $this->GetPriceSide($this->symbol, $OrderBD['side']);
+
+            if ($OrderBD['side'] == "long")  {
+                $price = $OrderREST['last'] + $TREK['step'] - $this->Basestep;
+            }
+            if ($OrderBD['side'] == "short")  {
+                $price = $OrderREST['last'] - $TREK['step'] + $this->Basestep;
+            }
+
+
+
+            echo "<font color='green'>Ордер откупился по цене</font> ".$OrderREST['last']."<br>";
+            echo "Будем выставлять по: ".$price."<br>";
+            echo "Текущая цена - ".$pricenow."<br>";
+
+
+
+            // ВЫСТАВЛЕНИЕ РЕВЕРСНОГО ОРДЕРА
+            // Если текущая цены выше цены которой мы планировали выставлять
+            $order = $this->CreateReverseOrder($pricenow, $price, $OrderBD, $TREK); // Первичное выставление ордера по статусу 2
+
+            $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST); // Исполнен статус 1
+
+
+            $countplus = $TREK['countplus'] + 1;
+            $ARRTREK['countplus'] = $countplus;
+            $this->ChangeARRinBD($ARRTREK, $TREK['id']);
+
+
+
+            $ARRCHANGE = [];
+            $ARRCHANGE['stat'] = 2;
+            $ARRCHANGE['orderid'] = $order['id'];
+            $ARRCHANGE['type'] = "LIMIT";
+            $ARRCHANGE['first'] = 0;
+            $ARRCHANGE['lastprice'] = $OrderREST['last'];
+            $ARRCHANGE['positionprice'] = $price;
+
+            $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+
+            echo  "<hr>";
+
+            continue;
 
 
 
@@ -375,196 +623,53 @@ class UniController extends AppController {
     }
 
 
-    // СТАТУС2 - ПРОВЕРКА НА ИСПОЛНЕННОСТЬ
-    private function WorkStat2($TREK, $AllOrdersREST, $pricenow){
-
-        $OrdersBD = $this->GetOrdersBD($TREK, 2);
-        echo "<h3>ОБРАБОТКА ОРДЕРОВ СТАТУСА 2</h3>";
 
 
-        foreach ($OrdersBD as $key=>$OrderBD) {
+    private function GlobalStop($TREK, $pricenow){
 
-            echo "#".$OrderBD['id']." СТАТУС ОРДЕРА <b>".$OrderBD['stat']."</b> - ".$OrderBD['orderid']." - <b>".$OrderBD['side']."</b> <br>";
+        $OrdersBD =  $this->GetAllOrdersBD($TREK['id']);
 
-            // Работа с ордерами вторго статуса
-            echo "<b>Работа СТАТУС 2</b><br>";
-            echo "Информация об ордере из REST<br>";
+        $count['ALL'] = 0;
+        $count['short'] = 0;
+        $count['long'] = 0;
 
-
-            $OrderREST = $this->GetOneOrderREST($OrderBD['orderid'], $AllOrdersREST); // Ордер РЕСТ статус 2
-
-
-            // Проверка на исоплненность
-            if ($this->OrderControl($OrderREST) === FALSE){
-                // Проверка ОРДЕРА НА СТОП!!!
+        foreach ($OrdersBD as $key=>$ORDER){
 
 
-                echo "Ордер не откупился<br>";
-                continue;
+            if ($ORDER['stat'] == 2 && $ORDER['side'] == "long"){
+                if ($pricenow > $ORDER['price']) continue;
+
+                $delta = $ORDER['price'] - $pricenow;
+                $delta = round($delta/$TREK['step']);
+                //         show($delta);
+                $count['ALL'] = $count['ALL'] + $delta;
+                $count['long'] = $count['long'] + $delta;
 
             }
 
 
-            echo "<font color='green'>Ордер статуса 2 исполнен</font><br>";
-            // ОРДЕР ИСПОЛНЕН
-
-
-         //   $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST); // Исполнен статус 2
-
-            $CurrentSTOP = 0;
-            if ($OrderREST['side'] == "SELL")
-            {
-                $CurrentSTOP = $OrderREST['avgPrice'] + $this->step*$this->stoploss;
-            }
-
-            if ($OrderREST['side'] == "BUY")
-            {
-                $CurrentSTOP = $OrderREST['avgPrice'] - $this->step*$this->stoploss;
-            }
-
-
-            $ARRCHANGE = [];
-            $ARRCHANGE['status'] = 3;
-            $ARRCHANGE['currentstop'] = $CurrentSTOP;
-            $ARRCHANGE['lastprice'] = $OrderREST['avgPrice'];
-            $ARRCHANGE['side'] = $OrderREST['side'];
-            $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
-
-            echo "<hr>";
-        }
-
-
-
-        return true;
-    }
-
-
-    // СТАТУС2 - ПРОВЕРКА НА ЗАКРЫТИЯ ПО СТОП ЛОССУ ( вместе с треллингом)
-    private function WorkStat3($TREK, $AllOrdersREST, $pricenow){
-
-
-
-        $OrdersBD = $this->GetOrdersBD($TREK, 3);
-        echo "<h3>ОБРАБОТКА ОРДЕРОВ СТАТУСА 3</h3>";
-
-
-        foreach ($OrdersBD as $key=>$OrderBD) {
-
-            echo "#".$OrderBD['id']." СТАТУС ОРДЕРА <b>".$OrderBD['stat']."</b> - ".$OrderBD['orderid']." - <b>".$OrderBD['side']."</b> <br>";
-
-            // Работа с ордерами вторго статуса
-            echo "<b>Работа СТАТУС 3</b><br>";
-
-
-
-            // Если пустой TrallingID, то выставляем его
-            if ($OrderBD['trallingorderid'] == NULL){
-
-                echo "Выставляем ПЕРВЫЙ СТОП ордер на ТЕЙК ПОЗИЦИИ!!<br><br>";
-                $this->CreateStopTrallingOrder($OrderBD,$OrderBD['currentstop']);
-            }
-
-
-
-            echo "<b><font color='purple'>СТОП-ОРДЕР ВЫСТАВЛЕН И МЫ МОНИОТРИМ ПОЛОЖЕНИЕЕЕ!!!!!!</font></b><br>";
-            // Если он есть в БД, то значит он выставлен и мы проверяем его статус
-
-
-
-
-            echo "Текущая цена: : ".$pricenow."<br>";
-            echo "Текущий стоп-лосс: : ".$OrderBD['currentstop']."<br>";
-            echo "Цена выставления ордера: ".$OrderBD['lastprice']."<br>";
-
-
-            if ($OrderBD['side'] == "BUY")
-            {
-                echo "<b>СТОРОНА LONG</b><br>";
-                if ($pricenow > ($OrderBD['lastprice'] + $this->step) )
-                {
-                    echo "<font color='green'> В ЗОНЕ ТРЕЛЛИНГА</font><br>";
-                    $delta = $pricenow - $OrderBD['currentstop'];
-                    echo "ДЕЛЬТА: ".$delta."<br>";
-                    if ($delta > $this->step/$this->deltacoef)
-                    {
-                        $ActualTrallingStop = $pricenow - $this->step/$this->deltacoef;
-                        // Отменяем текущий
-                        $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol) ;
-                        // Выставляем новый и ПЕРЕЗАПИСЫВАЕМ в БД
-                        $this->CreateStopTrallingOrder($OrderBD,$ActualTrallingStop);
-                    }
-                }
+            if ($ORDER['stat'] == 2 && $ORDER['side'] == "short"){
+                if ($pricenow < $ORDER['price']) continue;
+                //           show($delta);
+                $delta = $pricenow - $ORDER['price'];
+                $delta = round($delta/$TREK['step']);
+                $count['ALL'] = $count['ALL'] + $delta;
+                $count['short'] = $count['short'] + $delta;
 
             }
 
-
-
-            if ($OrderBD['side'] == "SELL")
-            {
-                echo "<b>СТОРОНА LONG</b><br>";
-                if ($pricenow < ($OrderBD['lastprice'] + $this->step) )
-                {
-                    echo "<font color='green'> В ЗОНЕ ТРЕЛЛИНГА</font><br>";
-                    $delta = $OrderBD['currentstop'] - $pricenow;
-                    echo "ДЕЛЬТА: ".$delta."<br>";
-                    if ($delta > $this->step/$this->deltacoef)
-                    {
-                        $ActualTrallingStop = $pricenow + $this->step/$this->deltacoef;
-                        // Отменяем текущий
-                        $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol) ;
-                        // Выставляем новый и ПЕРЕЗАПИСЫВАЕМ в БД
-                        $this->CreateStopTrallingOrder($OrderBD,$ActualTrallingStop);
-                    }
-                }
-
-            }
-
-
-
-
-
-
-
-
-
-
-
-            continue;
 
 
         }
 
 
 
-        return true;
-    }
-
-
-
-
-
-
-    private function CreateStopTrallingOrder($OrderBD, $StopPrice)
-    {
-
-        $params = [
-            'stopPrice'=> $StopPrice,  # your stop price
-        ];
-
-        $inverted_side = ($OrderBD['side'] == 'BUY') ? 'sell' : 'buy';
-        $order = $this->EXCHANGECCXT->create_order($this->symbol,"stop_market", $inverted_side, $OrderBD['amount'], null, $params);
-
-        $ARRCHANGE = [];
-        $ARRCHANGE['trallingorderid'] = $order['id'];
-        $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
-
-
-        echo "Треллинг СТОП ВЫСТАВЛЕН!<br>";
-
-
-        return true;
+        return $count;
 
     }
+
+
+
 
 
 
@@ -695,77 +800,48 @@ class UniController extends AppController {
 
         // Самое первое выставление
 
-        $RETURN['result'] = FALSE;
-
-        // ПРОВЕРКА НА ЛОНГ
-        if ($distance >= 0)
+        if ($distance > $this->maxposition)
         {
-
-            if ($distance > $this->maxposition)
-            {
-                echo "Ордер дальше дистнации максимальной позиции<br>";
-                return $RETURN;
-            }
-
-            if ($distance < 2)
-            {
-                echo "Не корректная дистанция";
-                return $RETURN;
-            }
-
-            $RETURN['result'] = "MARKET";
-            $RETURN['side'] = "long";
-            return $RETURN;
-
+            echo "Ордер дальше дистнации максимальной позиции<br>";
+            return false;
         }
 
-        // СКОРИНГ НА ШОРТ
-        if ($distance <= 0)
+        if ($distance < 2)
         {
-
-            if ($distance*(-1) > $this->maxposition)
-            {
-                echo "Ордер дальше дистнации максимальной позиции<br>";
-                return $RETURN;
-            }
-
-            if ($distance*(-1) < 2)
-            {
-                echo "Не корректная дистанция";
-                return $RETURN;
-            }
-
-            $RETURN['result'] = "MARKET";
-            $RETURN['side'] = "short";
-            return $RETURN;
-
+            echo "Не корректная дистанция";
+            return false;
         }
 
-
-
-
-
-        return $RETURN['result'] = false;
 
         // СКОРИНГ НА ЗАПУСКЕ!!!
 
 
-
+        return "MARKET";
 
     }
 
 
 
-    private function CheckDistance($pricenow, $OrderBD){
+    private function CheckDistance($side, $pricenow, $OrderBD){
 
         $distance = 0;
 
-        echo "Тек цен - ".$pricenow;
+        if ($side == "long"){
+            $distance = $OrderBD['price'] - $pricenow;
+            //          $distance = abs($distance);
+            $distance = $distance/$this->step;
+            $distance = round($distance);
+        }
 
-        $distance = $OrderBD['price'] - $pricenow;
+        if ($side == "short"){
+            $distance = $OrderBD['price'] - $pricenow;
+            //         $distance = abs($distance);
+            $distance = $distance/$this->step;
+            $distance = round($distance);
+        }
 
-        $distance = $distance/$this->step;
-        $distance = round($distance);
+
+
 
         return $distance;
     }
@@ -793,39 +869,28 @@ class UniController extends AppController {
     }
 
 
-    private function CreateFirstOrder($OrderBD, $resultscoring, $TREK){
+    private function CreateFirstOrder($OrderBD, $type, $TREK){
 
 
-        $sideorder = $this->GetTextSide($resultscoring['side']);
-
-       // $inverted_side = ($resultscoring['side'] == 'buy') ? 'sell' : 'buy';
-
-
+        $sideorder = $this->GetTextSide($OrderBD['side']);
         show($sideorder);
         var_dump($OrderBD['amount']);
         show($OrderBD['price']);
 
 
-        if ($resultscoring['result'] == "MARKET"){
+        if ($type == "MARKET"){
 
-
-            if ($resultscoring['side'] == "long")
-            {
-                $stop_loss = $OrderBD['price'] - $this->step*$this->stoploss;
-            }
-
-            if ($resultscoring['side'] == "short")
-            {
-                $stop_loss = $OrderBD['price'] + $this->step*$this->stoploss;
-            }
-
+            if ($OrderBD['side'] == "long") $bp = $TREK['rangel'];
+            if ($OrderBD['side'] == "short") $bp = $TREK['rangeh'];
 
             $params = [
-                'stopPrice'=> $OrderBD['price'],  # your stop price
+                'stop_px' => $OrderBD['price'], // trigger $price, required for conditional orders
+                'base_price' => $bp,
+                'trigger_by' => 'LastPrice', // IndexPrice, MarkPrice
+                'reduce_only' => false,
             ];
 
-
-            $order = $this->EXCHANGECCXT->create_order($this->symbol,"stop_market", $sideorder, $OrderBD['amount'], null, $params);
+            $order = $this->EXCHANGECCXT->create_order($this->symbol,"market", $sideorder, $OrderBD['amount'], null, $params);
 
             return $order;
 
@@ -938,7 +1003,7 @@ class UniController extends AppController {
 
 
     public function GetTextSide($textside){
-        if ($textside == "long" || $textside == "LONG") $sideorder = "buy";
+        if ($textside == "long" || $textside == "LONG") $sideorder = "Buy";
         if ($textside == "short" || $textside == "SHORT") $sideorder = "sell";
         return $sideorder;
     }
@@ -948,13 +1013,11 @@ class UniController extends AppController {
 
     public function OrderControl($order){
 
-
-
-        if (!empty($order['origQty']) && !empty($order['executedQty'])){
-            if ($order['origQty'] == $order['executedQty']) return true;
+        if (!empty($order['amount']) && !empty($order['filled'])){
+            if ($order['amount'] == $order['filled']) return true;
         }
 
-        if ($order['status'] == "FILLED") return true;
+        if ($order['status'] == "Filled") return true;
 
         return false;
 
@@ -992,14 +1055,13 @@ class UniController extends AppController {
 
     public function SetLeverage($leverage){
 
-        $market = $this->EXCHANGECCXT->market($this->symbol);
+        $this->esymbol = $this->EkranSymbol();
 
-        $params = array(
-            'symbol' => $market['id'], // convert a unified CCXT symbol to an exchange-specific market id
-            'leverage' => 10,
+        $this->EXCHANGECCXT->privateLinearGetPositionList([
+                'symbol' => $this->esymbol,
+                'leverage' => $leverage
+            ]
         );
-
-        $this->EXCHANGECCXT->fapiPrivate_post_leverage($params);
 
         return true;
     }
@@ -1123,9 +1185,70 @@ class UniController extends AppController {
 
     private function GetAllOrdersREST(){
 
-        $RESULT = $this->EXCHANGECCXT->fetch_orders($this->symbol, null, 100);
+        $url = "https://api.bybit.com/private/linear/order/list";
+        $symbol = $this->EkranSymbol();
+        $headers = [
+            'Content-Type' => 'application/json',
+        ];
+
+        // Загружаем PART1
+        $RESULTPart1 = [];
+        $params = [
+            'limit' => '50',
+            'order'=> 'desc',
+            'order_status' => '',
+            'timestamp' => time() * 1000,
+            'symbol' => $symbol,
+            'page' => 1,
+        ];
+
+        $qs = get_signed_params_bybit($this->ApiKey, $this->SecretKey, $params);
+        $url = $url."?".$qs;
+        $MASS = fCURL($url, null, $headers);
+        // Загружаем FILLED
+        $MASS = $MASS['result']['data'];
+        if (empty($MASS)) return FALSE;
+        foreach ($MASS as $key=>$val){
+            $RESULTPart1[$val['order_id']] = $val;
+            $RESULTPart1[$val['order_id']]['status'] = $val['order_status'];
+            $RESULTPart1[$val['order_id']]['amount'] = $val['qty'];
+            $RESULTPart1[$val['order_id']]['last'] = $val['last_exec_price'];
+
+        }
+        // Загружаем PART1
 
 
+        // Загружаем PART2
+        $RESULTPart2 = [];
+        $params = [
+            'limit' => '50',
+            'order'=> 'desc',
+            'order_status' => '',
+            'timestamp' => time() * 1000,
+            'symbol' => $symbol,
+            'page' => 2,
+        ];
+        $url = "https://api.bybit.com/private/linear/order/list";
+        $qs = get_signed_params_bybit($this->ApiKey, $this->SecretKey, $params);
+        $url = $url."?".$qs;
+
+        $MASS = fCURL($url, null, $headers);
+
+        $MASS = $MASS['result']['data'];
+        if (empty($MASS)) return FALSE;
+
+        foreach ($MASS as $key=>$val){
+            $RESULTPart2[$val['order_id']] = $val;
+            $RESULTPart2[$val['order_id']]['status'] = $val['order_status'];
+            $RESULTPart2[$val['order_id']]['amount'] = $val['qty'];
+            $RESULTPart2[$val['order_id']]['last'] = $val['last_exec_price'];
+        }
+        // Загружаем PART2
+
+
+
+
+        $RESULT = array_merge ($RESULTPart1, $RESULTPart2);
 
         return $RESULT;
 
@@ -1136,17 +1259,16 @@ class UniController extends AppController {
     private function GetOneOrderREST($id, $AllOrdersREST)
     {
 
-        foreach ($AllOrdersREST as $key=>$val)
-        {
-            if ($val['id'] == $id) return $val['info'];
+        if (array_key_exists($id, $AllOrdersREST)) {
 
-
+            echo "Массив содержит элемент <br>";
+            return $AllOrdersREST[$id];
         }
 
-        $order = $this->EXCHANGECCXT->fetch_order($id,$this->symbol)['info'];
-    //    $order['status'] = $order['status'];
-        $order['amount'] = $order['origQty'];
-        $order['last'] = $order['avgPrice'];
+        $order = $this->EXCHANGECCXT->fetchOrder($id,$this->symbol)['info'];
+        $order['status'] = $order['order_status'];
+        $order['amount'] = $order['qty'];
+        $order['last'] = $order['last_exec_price'];
 
         // $MASS[$order['id']] = $order;
         return $order;
@@ -1161,16 +1283,13 @@ class UniController extends AppController {
 
         $dollar = 0;
 
-        // Цена захода
-
-        if ($OrderBD['stat'] == 2){
+        if ($OrderBD['stat'] == 1){
             if ($OrderBD['type'] == "MARKET") $dollar = $OrderREST['amount']*$OrderREST['last']*(-0.075)/100;
         }
 
 
-
-        if ($OrderBD['stat'] == 3 && $OrderREST['side'] == "Buy"){
-            $enter = $OrderBD['price'];
+        if ($OrderBD['stat'] == 2 && $OrderBD['side'] == "long"){
+            $enter = $OrderBD['lastprice'];
             $pexit = $OrderREST['last'];
 
             $delta = changemet($enter, $pexit) + 0.025;
@@ -1180,7 +1299,7 @@ class UniController extends AppController {
         }
 
 
-        if ($OrderBD['stat'] == 3 && $OrderREST['side'] == "Sell"){
+        if ($OrderBD['stat'] == 2 && $OrderBD['side'] == "short"){
             $enter = $OrderBD['lastprice'];
             $pexit = $OrderREST['last'];
             $delta = changemet($pexit, $enter) + 0.025;
@@ -1189,6 +1308,9 @@ class UniController extends AppController {
 
 
         $ACTBAL = $this->GetBal()['USDT']['total'];
+
+
+        $countm =  $this->GlobalStop($TREK, $OrderREST['price'])['ALL'];
 
 
         $MASS = [
@@ -1202,6 +1324,7 @@ class UniController extends AppController {
             'fact' => $OrderREST['price'],
             'bal' => $ACTBAL,
             'dollar' => $dollar,
+            'countminus' => $countm,
         ];
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
         $tbl3 = R::dispense("trekhistory");

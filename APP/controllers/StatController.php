@@ -62,7 +62,7 @@ class StatController extends AppController {
 
         $Balyesterday = 499;
 
-        echo "БАЛАНС ВЧЕРА:".$Balyesterday."<br>";
+        echo "11БАЛАНС ВЧЕРА:".$Balyesterday."<br>";
 
         echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE['total']."<br>";
         echo "<hr>";
