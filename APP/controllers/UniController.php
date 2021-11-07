@@ -31,7 +31,7 @@ class UniController extends AppController {
     private $lot = 0.001; // Базовый заход
     private $RangeH = 70000;
     private $RangeL = 50000;
-    private $step = 30; // Размер шага между ордерами
+    private $step = 65; // Размер шага между ордерами
     private $stoploss = 4; // Размер шага между ордерами
     private $maxposition = 3;
     private      $maVAL = 14; // Коэффицент для МА
@@ -479,6 +479,7 @@ class UniController extends AppController {
             echo "<b>Работа СТАТУС 3</b><br>";
             echo "Цена по БД:".$OrderBD['price']."<br>";
             echo "Откупился ПО:".$OrderBD['lastprice']."<br>";
+            echo "<b>Текущая цена:</b> ".$pricenow."<br>";
             echo "Текущий стоп:".$OrderBD['currentstop']."<br>";
 
 
@@ -650,13 +651,26 @@ class UniController extends AppController {
     private function CheckGlobalSCORING()
     {
 
+
+        $otklonenie = 0;
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
        $RSI =  GetRSI($this->KLINES15M);
+       // show($RSI);
 
-        show($RSI);
+       $MaVAL = GetMA($this->KLINES30M);
+      //  show($MaVAL);
 
+        $otklonenie = $pricenow - $MaVAL;
+        if ($pricenow < $MaVAL) $otklonenie = $MaVAL - $pricenow;
 
+        if ($otklonenie > $this->maDev*$this->step) return false;
+
+        if ($RSI > $this->maxRSI) return false;
+        if ($RSI < $this->minRSI) return false;
+
+        if ($RSI > 50 && $this->workside == "long") return true;
+        if ($RSI < 50 && $this->workside == "short") return true;
 
 
         return true;
