@@ -612,7 +612,7 @@ class LController extends AppController {
         if ($OrderBD['side'] == "SELL")
         {
             echo "<b>СТОРОНА LONG</b><br>";
-            if ($pricenow < ($OrderBD['lastprice'] + $this->step) )
+            if ($pricenow < ($OrderBD['lastprice'] - $this->step) )
             {
                 echo "<font color='green'> В ЗОНЕ ТРЕЛЛИНГА</font><br>";
                 $delta = $OrderBD['currentstop'] - $pricenow;
@@ -834,7 +834,6 @@ class LController extends AppController {
         // СКОРИНГ НА ШОРТ
         if ($distance <= 0)
         {
-            echo "ПОПАЛИ В ШОРТОВУЮ ТЕМУ";
 
             if ($distance*(-1) > $this->maxposition)
             {

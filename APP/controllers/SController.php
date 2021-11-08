@@ -611,12 +611,15 @@ class SController extends AppController {
 
         if ($OrderBD['side'] == "SELL")
         {
-            echo "<b>СТОРОНА LONG</b><br>";
-            if ($pricenow < ($OrderBD['lastprice'] + $this->step) )
+            echo "<b>СТОРОНА SHORT</b><br>";
+            if ($pricenow < ($OrderBD['lastprice'] - $this->step) )
             {
                 echo "<font color='green'> В ЗОНЕ ТРЕЛЛИНГА</font><br>";
                 $delta = $OrderBD['currentstop'] - $pricenow;
                 echo "ДЕЛЬТА: ".$delta."<br>";
+               // echo "111";
+               // exit("1111");
+
                 if ($delta > $this->step/$this->deltacoef)
                 {
                     $ActualTrallingStop = $pricenow + $this->step/$this->deltacoef;
@@ -830,7 +833,6 @@ class SController extends AppController {
         // СКОРИНГ НА ШОРТ
         if ($distance <= 0)
         {
-            echo "ПОПАЛИ В ШОРТОВУЮ ТЕМУ";
 
             if ($distance*(-1) > $this->maxposition)
             {
