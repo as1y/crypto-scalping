@@ -561,6 +561,11 @@ class LController extends AppController {
     private function TrallingControl($OrderBD, $pricenow, $canceled)
     {
 
+        // Запрашиваем заново $pricenow
+        $this->ORDERBOOK = $this->GetOrderBook($this->symbol);
+        $pricenow = $this->GetPriceSide($this->symbol, "long");
+        // Запрашиваем заново $pricenow
+
         if ($OrderBD['side'] == "BUY")
         {
             echo "<b>СТОРОНА LONG</b><br>";
@@ -581,7 +586,11 @@ class LController extends AppController {
                     if ($canceled == false)
                     {
                         $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol);
+                    }else{
+                        echo "Ордер уже был отменен<br>";
                     }
+
+
 
                     // Выставляем новый и ПЕРЕЗАПИСЫВАЕМ в БД
                     $this->CreateStopTrallingOrder($OrderBD,$ActualTrallingStop);
@@ -1122,7 +1131,7 @@ class LController extends AppController {
         {
             $enter = $OrderBD['lastprice'];
             $pexit = $OrderREST['avgPrice'];
-            $delta = changemet($enter, $pexit) - 0.048;
+            $delta = changemet($enter, $pexit) - 0.072;
             $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['origQty'];
         }
 
@@ -1130,7 +1139,7 @@ class LController extends AppController {
         {
             $enter = $OrderBD['lastprice'];
             $pexit = $OrderREST['avgPrice'];
-            $delta = changemet($pexit, $enter) - 0.048;
+            $delta = changemet($pexit, $enter) - 0.072;
             $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['origQty'];
         }
 
