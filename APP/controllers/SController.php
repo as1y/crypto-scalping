@@ -6,7 +6,7 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class UniController extends AppController {
+class SController extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
@@ -14,8 +14,8 @@ class UniController extends AppController {
 
     // BINANCE
 
-    public $ApiKey = "l2xzXGEQVJcYKk1uNB1ynDPATLmL9oUEMH0zlCLZ4F9QzQ7UaFkFLTFzQdEFpDBl";
-    public $SecretKey = "hJOj8RnPJwf0Y4zmcDqGLPrdIGsGvx8NDMmwidKBTSCbNLK3qqzI9Vainm77YSf6";
+    public $ApiKey = "qzaF8Ut8SmDPK6XkA4fbgCZSuoKV11lMKVLMJU6rlrEPKcz3b6uLGHTRQ1YM9Anv";
+    public $SecretKey = "8891gvmiOXz6ITGd8m3QWGEkQXHvBg5LeMOJIy8nvSbqQNviLSBQf7z7YK2mGSbv";
 
 
     // Переменные для стратегии
@@ -27,19 +27,19 @@ class UniController extends AppController {
 
 
     // ПАРАМЕТРЫ СТРАТЕГИИ
-    private $workside = "long";
+    private $workside = "short";
     private $lot = 0.001; // Базовый заход
-    private $RangeH = 70000;
+    private $RangeH = 75000;
     private $RangeL = 50000;
-    private $step = 65; // Размер шага между ордерами
-    private $stoploss = 4; // Размер шага между ордерами
+    private $step = 120; // Размер шага между ордерами
+    private $stoploss = 8; // Размер шага между ордерами
     private $maxposition = 3;
     private      $maVAL = 14; // Коэффицент для МА
-    private      $maDev = 2; // Отклонение МА
+    private      $maDev = 3; // Отклонение МА
     private      $countPosition = 3; // Счетчик ордеров?
-    private      $maxRSI = 80; // Фильтр по RSI
-    private      $minRSI = 20; // Фильтр по RSI
-    private      $deltacoef = 2; // Коэффицентр треллинга
+    private      $maxRSI = 70; // Фильтр по RSI
+    private      $minRSI = 30; // Фильтр по RSI
+    private      $deltacoef = 6; // Коэффицентр треллинга
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -90,7 +90,7 @@ class UniController extends AppController {
             'secret' => $this->SecretKey,
             'timeout' => 30000,
             'enableRateLimit' => true,
-   //         'marketType' => "linear",
+            //         'marketType' => "linear",
             'options' => array(
                 'defaultType' => 'future'
                 //  'marketType' => "linear"
@@ -366,14 +366,14 @@ class UniController extends AppController {
                 $order = $this->CreateFirstOrder($OrderBD, $resultscoring, $TREK);
 
                 // Записываем
-                 show($order);
+                show($order);
 
                 $ARRCHANGE = [];
                 $ARRCHANGE['orderid'] = $order['id'];
                 $ARRCHANGE['side'] = $order['side'];
                 $ARRCHANGE['status'] = 2;
                 $ARRCHANGE['type'] = $resultscoring['result'];
-             //   $ARRCHANGE['lastprice'] = $order['last_exec_price'];
+                //   $ARRCHANGE['lastprice'] = $order['last_exec_price'];
                 $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
 
@@ -423,11 +423,11 @@ class UniController extends AppController {
                 echo  "Ордер выставлен по цене: ".$OrderBD['price']."<br>";
 
                 // Ордер слишком далеко. Снимаем его из-за ограничений биржи
-                if ($distance >= 5 && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD);
+                if ($distance >= 5 && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
 
-                if ($distance <= -5 && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD);
+                if ($distance <= -5 && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
 
-                if ($this->SCORING === FALSE) $this->CancelStatus2($OrderBD);
+                if ($this->SCORING === FALSE) $this->CancelStatus2($OrderBD,$OrderREST);
 
                 echo "Ордер не откупился<br>";
                 continue;
@@ -543,10 +543,11 @@ class UniController extends AppController {
 
 
 
-    private function CancelStatus2($OrderBD)
+    private function CancelStatus2($OrderBD,$OrderREST)
     {
 
-        $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol) ;
+        if ($OrderREST['status'] != "CANCELED") $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol) ;
+
         $ARRCHANGE = [];
         $ARRCHANGE['status'] = 1;
         $ARRCHANGE['orderid'] = NULL;
@@ -669,11 +670,11 @@ class UniController extends AppController {
         $otklonenie = 0;
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
-       $RSI =  GetRSI($this->KLINES15M);
-       // show($RSI);
+        $RSI =  GetRSI($this->KLINES15M);
+        // show($RSI);
 
-       $MaVAL = GetMA($this->KLINES30M);
-      //  show($MaVAL);
+        $MaVAL = GetMA($this->KLINES30M);
+        //  show($MaVAL);
 
         $otklonenie = $pricenow - $MaVAL;
         if ($pricenow < $MaVAL) $otklonenie = $MaVAL - $pricenow;
@@ -884,7 +885,7 @@ class UniController extends AppController {
 
         $sideorder = $this->GetTextSide($resultscoring['side']);
 
-       // $inverted_side = ($resultscoring['side'] == 'buy') ? 'sell' : 'buy';
+        // $inverted_side = ($resultscoring['side'] == 'buy') ? 'sell' : 'buy';
 
 
         show($sideorder);
@@ -1095,7 +1096,7 @@ class UniController extends AppController {
         }
 
         $order = $this->EXCHANGECCXT->fetch_order($id,$this->symbol)['info'];
-    //    $order['status'] = $order['status'];
+        //    $order['status'] = $order['status'];
         $order['amount'] = $order['origQty'];
         $order['last'] = $order['avgPrice'];
 
