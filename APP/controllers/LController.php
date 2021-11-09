@@ -504,10 +504,19 @@ class LController extends AppController {
                 echo "<b><font color='purple'>СТОП ОРДЕР ЖДЕТ КОГДА ОТКУПИТЬСЯ</font></b><br>";
                 // Если он есть в БД, то значит он выставлен и мы проверяем его статус
 
-                $canceled = false;
-                if ($OrderREST['status'] == "CANCELED") $canceled = true;
+                if ($OrderREST['status'] == "CANCELED")
+                {
 
-                $this->TrallingControl($OrderBD, $pricenow, $canceled);
+                    $ARRCHANGE = [];
+                    $ARRCHANGE['status'] = 2;
+                    $ARRCHANGE['trallingorderid'] = NULL;
+                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+                    continue;
+
+                }
+
+                $this->TrallingControl($OrderBD, $pricenow);
 
                 continue;
 
@@ -558,7 +567,7 @@ class LController extends AppController {
 
 
 
-    private function TrallingControl($OrderBD, $pricenow, $canceled)
+    private function TrallingControl($OrderBD, $pricenow)
     {
 
         // Запрашиваем заново $pricenow
@@ -583,13 +592,7 @@ class LController extends AppController {
                     // Отменяем текущий
 
                     // Проверка вдруг ордер уже отменен
-                    if ($canceled == false)
-                    {
-                        $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol);
-                    }else{
-                        echo "Ордер уже был отменен<br>";
-                    }
-
+                    $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol);
 
 
                     // Выставляем новый и ПЕРЕЗАПИСЫВАЕМ в БД
@@ -623,10 +626,7 @@ class LController extends AppController {
                     // Отменяем текущий
 
                     // Проверка вдруг ордер уже отменен
-                    if ($canceled == false)
-                    {
-                        $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol);
-                    }
+                    $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol);
 
                     // Выставляем новый и ПЕРЕЗАПИСЫВАЕМ в БД
                     $this->CreateStopTrallingOrder($OrderBD,$ActualTrallingStop);
