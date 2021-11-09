@@ -33,13 +33,13 @@ class SController extends AppController {
     private $RangeL = 50000;
     private $step = 120; // Размер шага между ордерами
     private $stoploss = 8; // Размер шага между ордерами
-    private $maxposition = 3;
+    private $maxposition = 2;
     private      $maVAL = 14; // Коэффицент для МА
     private      $maDev = 3; // Отклонение МА
-    private      $countPosition = 3; // Счетчик ордеров?
+    private      $countPosition = 4; // Счетчик ордеров?
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
-    private      $deltacoef = 6; // Коэффицентр треллинга
+    private      $deltacoef = 8; // Коэффицентр треллинга
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -423,11 +423,11 @@ class SController extends AppController {
                 echo  "Ордер выставлен по цене: ".$OrderBD['price']."<br>";
 
                 // Ордер слишком далеко. Снимаем его из-за ограничений биржи
-                if ($distance >= 5 && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
+                if ($distance >= $this->countPosition && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
 
-                if ($distance <= -5 && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
+                if ($distance <= (-1)*$this->countPosition && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
 
-                if ($this->SCORING === FALSE) $this->CancelStatus2($OrderBD,$OrderREST);
+       //         if ($this->SCORING === FALSE) $this->CancelStatus2($OrderBD,$OrderREST);
 
                 echo "Ордер не откупился<br>";
                 continue;
