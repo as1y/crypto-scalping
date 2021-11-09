@@ -35,7 +35,7 @@ class SController extends AppController {
     private $stoploss = 8; // Размер шага между ордерами
     private $maxposition = 2;
     private      $maVAL = 14; // Коэффицент для МА
-    private      $maDev = 3; // Отклонение МА
+    private      $maDev = 4; // Отклонение МА
     private      $countPosition = 4; // Счетчик ордеров?
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
