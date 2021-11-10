@@ -85,7 +85,7 @@ function GetMA($KLINES)
 
     $sumclose = 0;
 
-    for ($i=1; $i < count($KLINES); $i++ ){
+    for ($i=1; $i < 8; $i++ ){
         $sumclose = $sumclose + $KLINES[$i]['4'];
     }
 

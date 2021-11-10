@@ -5,6 +5,7 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/APP/controllers/LController.php" beforeDir="false" afterPath="$PROJECT_DIR$/APP/controllers/LController.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/APP/controllers/SController.php" beforeDir="false" afterPath="$PROJECT_DIR$/APP/controllers/SController.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/functions_app.php" beforeDir="false" afterPath="$PROJECT_DIR$/lib/functions_app.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -182,7 +183,8 @@
       <workItem from="1635899136498" duration="36377000" />
       <workItem from="1636039675517" duration="21600000" />
       <workItem from="1636330327751" duration="10606000" />
-      <workItem from="1636410187153" duration="10196000" />
+      <workItem from="1636410187153" duration="10556000" />
+      <workItem from="1636544291132" duration="3175000" />
     </task>
     <servers />
   </component>

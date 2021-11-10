@@ -31,15 +31,15 @@ class LController extends AppController {
     private $lot = 0.001; // Базовый заход
     private $RangeH = 75000;
     private $RangeL = 50000;
-    private $step = 120; // Размер шага между ордерами
+    private $step = 100; // Размер шага между ордерами
     private $stoploss = 8; // Размер шага между ордерами
     private $maxposition = 2;
     private      $maVAL = 14; // Коэффицент для МА
-    private      $maDev = 4; // Отклонение МА
+    private      $maDev = 3; // Отклонение МА
     private      $countPosition = 4; // Счетчик ордеров?
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
-    private      $deltacoef = 8; // Коэффицентр треллинга
+    private      $deltacoef = 6; // Коэффицентр треллинга
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
