@@ -14,8 +14,8 @@ class SController extends AppController {
 
     // BINANCE
 
-    public $ApiKey = "l2xzXGEQVJcYKk1uNB1ynDPATLmL9oUEMH0zlCLZ4F9QzQ7UaFkFLTFzQdEFpDBl";
-    public $SecretKey = "hJOj8RnPJwf0Y4zmcDqGLPrdIGsGvx8NDMmwidKBTSCbNLK3qqzI9Vainm77YSf6";
+    public $ApiKey = "qzaF8Ut8SmDPK6XkA4fbgCZSuoKV11lMKVLMJU6rlrEPKcz3b6uLGHTRQ1YM9Anv";
+    public $SecretKey = "8891gvmiOXz6ITGd8m3QWGEkQXHvBg5LeMOJIy8nvSbqQNviLSBQf7z7YK2mGSbv";
 
 
     // Переменные для стратегии
