@@ -5,6 +5,7 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/APP/controllers/LController.php" beforeDir="false" afterPath="$PROJECT_DIR$/APP/controllers/LController.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/APP/controllers/SController.php" beforeDir="false" afterPath="$PROJECT_DIR$/APP/controllers/SController.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/APP/controllers/StatController.php" beforeDir="false" afterPath="$PROJECT_DIR$/APP/controllers/StatController.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/functions_app.php" beforeDir="false" afterPath="$PROJECT_DIR$/lib/functions_app.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -184,7 +185,10 @@
       <workItem from="1636039675517" duration="21600000" />
       <workItem from="1636330327751" duration="10606000" />
       <workItem from="1636410187153" duration="10556000" />
-      <workItem from="1636544291132" duration="3175000" />
+      <workItem from="1636544291132" duration="17087000" />
+      <workItem from="1636978929655" duration="296000" />
+      <workItem from="1636991823292" duration="24000" />
+      <workItem from="1637446044103" duration="1185000" />
     </task>
     <servers />
   </component>
@@ -192,10 +196,10 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="548" y="168" key="FileChooserDialogImpl" timestamp="1635899133104">
+    <state x="548" y="168" key="FileChooserDialogImpl" timestamp="1636991845467">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
-    <state x="548" y="168" key="FileChooserDialogImpl/0.0.1536.824@0.0.1536.824" timestamp="1635899133104" />
+    <state x="548" y="168" key="FileChooserDialogImpl/0.0.1536.824@0.0.1536.824" timestamp="1636991845467" />
     <state x="277" y="56" key="SettingsEditor" timestamp="1630089411742">
       <screen x="0" y="0" width="1536" height="824" />
     </state>

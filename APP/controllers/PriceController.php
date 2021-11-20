@@ -6,13 +6,16 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class StatController extends AppController {
+class PriceController extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
-    public $ApiKey = "U5I2AoIrTk4gBR7XLB";
-    public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
+    public $ApiKey = "qzaF8Ut8SmDPK6XkA4fbgCZSuoKV11lMKVLMJU6rlrEPKcz3b6uLGHTRQ1YM9Anv";
+    public $SecretKey = "8891gvmiOXz6ITGd8m3QWGEkQXHvBg5LeMOJIy8nvSbqQNviLSBQf7z7YK2mGSbv";
+
+
+    public $symbol = "BTC/USDT";
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -56,26 +59,14 @@ class StatController extends AppController {
         ));
 
 
-       // $this->BALANCE = $this->GetBal()['USDT'];
-
-    //    $this->BALANCE['total'] = round($this->BALANCE['total'], 2);
-
-      //  $Balyesterday = 499;
-
-        echo "112БАЛАНС ВЧЕРА:<br>";
-
-        exit("11");
+        $this->BALANCE = $this->GetBal()['USDT'];
 
 
-        echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE['total']."<br>";
-        echo "<hr>";
-  
-        $deltatodat = changemet($Balyesterday, $this->BALANCE['total']);
+        echo "111-222";
 
-        echo "<b>ПРОФИТ СЕГОДНЯ </b>".$deltatodat." %<br>";
+        $KLINES = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '1m');
 
-
-
+        show($KLINES);
 
 
         // Получение ТРЕКОВ

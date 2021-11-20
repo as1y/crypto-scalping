@@ -34,12 +34,12 @@ class LController extends AppController {
     private $step = 100; // Размер шага между ордерами
     private $stoploss = 8; // Размер шага между ордерами
     private $maxposition = 2;
-    private      $maVAL = 14; // Коэффицент для МА
+    private      $maVAL = 7; // Коэффицент для МА
     private      $maDev = 3; // Отклонение МА
     private      $countPosition = 4; // Счетчик ордеров?
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
-    private      $deltacoef = 6; // Коэффицентр треллинга
+    private      $deltacoef = 4; // Коэффицентр треллинга
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -106,7 +106,7 @@ class LController extends AppController {
         $this->KLINES15M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '15m', null, 15);
 
         //СВЕЧИ 30
-        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 15);
+        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 7);
 
 
         // ГЛОБАЛЬНЫЙ СКОРИНГ
@@ -457,6 +457,8 @@ class LController extends AppController {
             $ARRCHANGE['side'] = $OrderREST['side'];
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
+            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"enter");
+
             echo "<hr>";
         }
 
@@ -537,6 +539,7 @@ class LController extends AppController {
             $ARRCHANGE['orderid'] = NULL;
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
+            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"exit");
 
 
             continue;
@@ -1120,6 +1123,40 @@ class LController extends AppController {
     }
 
 
+    private function AddTracDealTradeBD($TREK, $price, $side, $type)
+    {
+
+
+        // Цена захода
+
+        $MASS = [
+            'trekid' => $TREK['id'],
+            'type' => $type,
+            'side' => $side,
+            'dateex' => date("d-m-Y"),
+            'time' => date("H:i:s"),
+            'price' => $price,
+        ];
+
+        //ДОБАВЛЯЕМ В ТАБЛИЦУ
+        $tbl3 = R::dispense("dealhistory");
+        //ДОБАВЛЯЕМ В ТАБЛИЦУ
+
+        //ДОБАВЛЯЕМ В ТАБЛИЦУ
+        foreach ($MASS as $name => $value) {
+            $tbl3->$name = $value;
+        }
+        R::store($tbl3);
+
+        echo "Сохранили запись о сделке в БД <br>";
+
+
+        return true;
+
+    }
+
+
+
     private function AddTrackHistoryBD($TREK, $OrderBD, $OrderREST, $SCORING = FALSE)
     {
         $dollar = 0;
@@ -1147,6 +1184,7 @@ class LController extends AppController {
         $MASS = [
             'trekid' => $TREK['id'],
             'side' => $OrderBD['side'],
+            'dateex' => date("d-m-Y"),
             'timeexit' => date("H:i:s"),
             'enter' => $OrderBD['lastprice'],
             'exit' => $OrderREST['avgPrice'],

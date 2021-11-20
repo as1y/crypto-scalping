@@ -83,13 +83,19 @@ function SCORING($KLINES, $pricenow){
 function GetMA($KLINES)
 {
 
+    //show($KLINES);
+
     $sumclose = 0;
 
-    for ($i=1; $i < 8; $i++ ){
-        $sumclose = $sumclose + $KLINES[$i]['4'];
-    }
+        foreach ($KLINES as $key=>$val)
+        {
+            $sumclose = $sumclose + $KLINES[$key]['4'];
+        }
 
-    $MA = round($sumclose/14);
+
+    //echo $sumclose."<br>";
+
+    $MA = round($sumclose/count($KLINES));
 
     return $MA;
 
