@@ -11,8 +11,8 @@ class PriceController extends AppController {
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
-    public $ApiKey = "qzaF8Ut8SmDPK6XkA4fbgCZSuoKV11lMKVLMJU6rlrEPKcz3b6uLGHTRQ1YM9Anv";
-    public $SecretKey = "8891gvmiOXz6ITGd8m3QWGEkQXHvBg5LeMOJIy8nvSbqQNviLSBQf7z7YK2mGSbv";
+    public $ApiKey = "l2xzXGEQVJcYKk1uNB1ynDPATLmL9oUEMH0zlCLZ4F9QzQ7UaFkFLTFzQdEFpDBl";
+    public $SecretKey = "hJOj8RnPJwf0Y4zmcDqGLPrdIGsGvx8NDMmwidKBTSCbNLK3qqzI9Vainm77YSf6";
 
 
     public $symbol = "BTC/USDT";
@@ -46,27 +46,40 @@ class PriceController extends AppController {
         //  show(\ccxt\Exchange::$exchanges); // print a list of all available exchange classes
 
         //Запуск CCXT
-        $this->EXCHANGECCXT = new \ccxt\bybit (array(
+        $this->EXCHANGECCXT = new \ccxt\binance (array(
             'apiKey' => $this->ApiKey,
             'secret' => $this->SecretKey,
             'timeout' => 30000,
             'enableRateLimit' => true,
-            'marketType' => "linear",
+            //         'marketType' => "linear",
             'options' => array(
-                // 'code'=> 'USDT',
+                'defaultType' => 'future'
                 //  'marketType' => "linear"
             )
         ));
 
 
-        $this->BALANCE = $this->GetBal()['USDT'];
+        $date = "25.11.2021";
+
+        // Высчитываем сколько прошло минут с начала дня
+        $timenow = time();
+
+        // Время на старт дня
+
+        echo "Входящий параметр ДАТЫ: - ".$date."<br><br>";
 
 
-        echo "111-222";
+        echo "Время UNIX сейчас сейчас: - ".$timenow."<br><br>";
 
-        $KLINES = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '1m');
 
-        show($KLINES);
+        $convertnow =  date('m/d/Y', $timenow);
+        echo "Время сейчас конвертируем в D-M-Y: - ".$convertnow."<br><br>";
+
+
+
+
+     //   $KLINES = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '1m');
+     //   show($KLINES);
 
 
         // Получение ТРЕКОВ

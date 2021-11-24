@@ -17,7 +17,7 @@ class SController extends AppController {
     public $ApiKey = "qzaF8Ut8SmDPK6XkA4fbgCZSuoKV11lMKVLMJU6rlrEPKcz3b6uLGHTRQ1YM9Anv";
     public $SecretKey = "8891gvmiOXz6ITGd8m3QWGEkQXHvBg5LeMOJIy8nvSbqQNviLSBQf7z7YK2mGSbv";
 
-
+ 
     // Переменные для стратегии
     public $leverege = 90;
     public $symbol = "BTC/USDT";
