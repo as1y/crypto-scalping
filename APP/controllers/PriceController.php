@@ -14,8 +14,8 @@ class PriceController extends AppController {
     public $ApiKey = "l2xzXGEQVJcYKk1uNB1ynDPATLmL9oUEMH0zlCLZ4F9QzQ7UaFkFLTFzQdEFpDBl";
     public $SecretKey = "hJOj8RnPJwf0Y4zmcDqGLPrdIGsGvx8NDMmwidKBTSCbNLK3qqzI9Vainm77YSf6";
 
-
     public $symbol = "BTC/USDT";
+
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -59,7 +59,8 @@ class PriceController extends AppController {
         ));
 
 
-        $date = "25.11.2021";
+        $date = "2021-11-25 00:00:00";
+        $timeUnixStart = strtotime($date);
 
         // Высчитываем сколько прошло минут с начала дня
         $timenow = time();
@@ -68,18 +69,45 @@ class PriceController extends AppController {
 
         echo "Входящий параметр ДАТЫ: - ".$date."<br><br>";
 
+        echo  "Время UNIX на начала выгрузки котировок:".$timeUnixStart."<br><br>";
 
         echo "Время UNIX сейчас сейчас: - ".$timenow."<br><br>";
 
+        // КОНВЕРТАЦИЯ ИЗ TIMESTAMP в РЕАЛЬНУЮ ДАТУ
+        //$convertnow =  date('Y-m-d H:i:s', $timenow);
+        // КОНВЕРТАЦИЯ ДАТЫ В TIMESTAMP
+       // echo "Время сейчас конвертируем в : - ".$convertnow."<br><br>";
 
-        $convertnow =  date('m/d/Y', $timenow);
-        echo "Время сейчас конвертируем в D-M-Y: - ".$convertnow."<br><br>";
+
+        // Рассчитываем сколько нужно свечей
+        $countBars = $timenow - $timeUnixStart;
+        $countBars = floor($countBars/60);
+
+        echo "Кол-во минутных свечей. Которых нужно выгрузить:".$countBars."<br><br>";
+
+        if ($countBars > 1440) $countBars = 1440;
+
+        // Рассчет кол-во запросов для выгрузки всех котировок
+        $NeedRequest = ceil($countBars/500);
+
+        echo "Нужно запросов к БД:".$NeedRequest."<br>";
+
+
+        $SincePar = $timeUnixStart  * 1000;
+
+        show($timeUnixStart);
+        show($countBars);
+        show($SincePar);
+
+        $KLINES = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '1m', $SincePar, $countBars);
+        show($KLINES);
+
+
+        // Преобразование МАССИВА в ЭКСПОРТ
+        
 
 
 
-
-     //   $KLINES = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '1m');
-     //   show($KLINES);
 
 
         // Получение ТРЕКОВ

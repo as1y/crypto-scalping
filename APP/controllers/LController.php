@@ -97,7 +97,7 @@ class LController extends AppController {
             )
         ));
 
- 
+
         $this->BALANCE = $this->GetBal()['USDT'];
 
         $this->ORDERBOOK = $this->GetOrderBook($this->symbol);
