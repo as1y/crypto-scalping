@@ -28,6 +28,7 @@ class LController extends AppController {
 
     // ПАРАМЕТРЫ СТРАТЕГИИ
     private $workside = "long";
+
     private $lot = 0.001; // Базовый заход
     private $RangeH = 75000;
     private $RangeL = 50000;
@@ -36,7 +37,6 @@ class LController extends AppController {
     private $maxposition = 2;
     private      $maVAL = 7; // Коэффицент для МА
     private      $maDev = 3; // Отклонение МА
-    private      $countPosition = 4; // Счетчик ордеров?
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
     private      $deltacoef = 4; // Коэффицентр треллинга
@@ -423,9 +423,9 @@ class LController extends AppController {
                 echo  "Ордер выставлен по цене: ".$OrderBD['price']."<br>";
 
                 // Ордер слишком далеко. Снимаем его из-за ограничений биржи
-                if ($distance >= $this->countPosition && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
+                if ($distance >= $this->maxposition && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
 
-                if ($distance <= (-1)*$this->countPosition && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
+                if ($distance <= (-1)*$this->maxposition && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
 
           //      if ($this->SCORING === FALSE) $this->CancelStatus2($OrderBD, $OrderREST);
 
@@ -844,6 +844,13 @@ class LController extends AppController {
         // СКОРИНГ НА ШОРТ
         if ($distance <= 0)
         {
+
+            if ($CountPosition >= $this->maxposition)
+            {
+                echo "Достигнут лимит размера позиции<br>";
+                return $RETURN;
+            }
+
 
             if ($distance*(-1) > $this->maxposition)
             {

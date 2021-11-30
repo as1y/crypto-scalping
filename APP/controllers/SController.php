@@ -28,6 +28,7 @@ class SController extends AppController {
 
     // ПАРАМЕТРЫ СТРАТЕГИИ
     private $workside = "short";
+
     private $lot = 0.001; // Базовый заход
     private $RangeH = 75000;
     private $RangeL = 50000;
@@ -36,7 +37,6 @@ class SController extends AppController {
     private $maxposition = 2;
     private      $maVAL = 7; // Коэффицент для МА
     private      $maDev = 3; // Отклонение МА
-    private      $countPosition = 4; // Счетчик ордеров?
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
     private      $deltacoef = 4; // Коэффицентр треллинга
@@ -196,7 +196,7 @@ class SController extends AppController {
         $ARR['rangeh'] = $rangeh;
         $ARR['rangel'] = $rangel;
         $ARR['startbalance'] = $this->BALANCE['total'];
-        $ARR['date'] = date("H:i:s");
+        $ARR['date'] = date("Y-m-d H:i:s");
         $ARR['stamp'] = time();
 
 
@@ -353,7 +353,7 @@ class SController extends AppController {
                 echo "Цена для выставления ордера".$OrderBD['price']."<br>";
 
                 // Скоринг на первичное выставление выставление
-                $resultscoring =  $this->CheckFirstOrder($distance);
+                $resultscoring =  $this->CheckFirstOrder($TREK, $distance);
                 show($resultscoring);
                 // Скоринг на первичное выставление выставление
 
@@ -423,9 +423,9 @@ class SController extends AppController {
                 echo  "Ордер выставлен по цене: ".$OrderBD['price']."<br>";
 
                 // Ордер слишком далеко. Снимаем его из-за ограничений биржи
-                if ($distance >= $this->countPosition && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
+                if ($distance >= $this->maxposition && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
 
-                if ($distance <= (-1)*$this->countPosition && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
+                if ($distance <= (-1)*$this->maxposition && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
 
                 //      if ($this->SCORING === FALSE) $this->CancelStatus2($OrderBD, $OrderREST);
 
@@ -457,7 +457,7 @@ class SController extends AppController {
             $ARRCHANGE['side'] = $OrderREST['side'];
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
-            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"enter");
+            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"in");
 
             echo "<hr>";
         }
@@ -539,7 +539,7 @@ class SController extends AppController {
             $ARRCHANGE['orderid'] = NULL;
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
-            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"exit");
+            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"out");
 
 
             continue;
@@ -792,7 +792,7 @@ class SController extends AppController {
 
 
 
-    private function CheckFirstOrder($distance){
+    private function CheckFirstOrder($TREK, $distance){
 
 
         // Проверка на дистанцию
@@ -807,6 +807,7 @@ class SController extends AppController {
         // Проверка на глобальный скоринг
 
 
+        $CountPosition = $this->CountActiveOrders($TREK, "3");
 
         if ($distance < 0 && $this->workside == "long") return $RETURN;
         if ($distance > 0 && $this->workside == "short") return $RETURN;
@@ -815,6 +816,12 @@ class SController extends AppController {
         // ПРОВЕРКА НА ЛОНГ
         if ($distance >= 0)
         {
+
+            if ($CountPosition >= $this->maxposition)
+            {
+                echo "Достигнут лимит размера позиции<br>";
+                return $RETURN;
+            }
 
             if ($distance > $this->maxposition)
             {
@@ -837,6 +844,13 @@ class SController extends AppController {
         // СКОРИНГ НА ШОРТ
         if ($distance <= 0)
         {
+
+            if ($CountPosition >= $this->maxposition)
+            {
+                echo "Достигнут лимит размера позиции<br>";
+                return $RETURN;
+            }
+
 
             if ($distance*(-1) > $this->maxposition)
             {
@@ -954,12 +968,12 @@ class SController extends AppController {
 
         $count = 0;
         if ($stat == 1 ){
-            $count = R::count("orders", 'WHERE idtrek =? AND side=? AND stat=? AND orderid IS NOT NULL', [$TREK['id'], $TREK['workside'], $stat]);
+            $count = R::count("orders", 'WHERE idtrek =? AND status=? AND orderid IS NOT NULL', [$TREK['id'], $stat]);
         }
 
 
         if ($stat == 2 ){
-            $count = R::count("orders", 'WHERE idtrek =? AND side=? AND stat=?', [$TREK['id'], $TREK['workside'], $stat]);
+            $count = R::count("orders", 'WHERE idtrek =? AND status=?', [$TREK['id'], $stat]);
         }
 
         if ($stat == "all"){
@@ -1131,10 +1145,10 @@ class SController extends AppController {
 
         $MASS = [
             'trekid' => $TREK['id'],
+            'trekside' => $TREK['workside'],
             'type' => $type,
             'side' => $side,
-            'dateex' => date("d-m-Y"),
-            'time' => date("H:i:s"),
+            'time' => date("Y-m-d H:i:s"),
             'price' => $price,
         ];
 
