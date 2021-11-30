@@ -41,7 +41,7 @@ class SController extends AppController {
     private      $minRSI = 30; // Фильтр по RSI
     private      $deltacoef = 4; // Коэффицентр треллинга
 
-
+ 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
     private $WORKTREKS = [];
     private $ORDERBOOK = [];
