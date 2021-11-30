@@ -58,26 +58,14 @@ class PriceController extends AppController {
             )
         ));
 
-
-        $date = "2021-11-25 00:00:00";
+        $date = "2021-11-26 00:00:00";
         $timeUnixStart = strtotime($date);
 
         // Высчитываем сколько прошло минут с начала дня
         $timenow = time();
 
-        // Время на старт дня
 
         echo "Входящий параметр ДАТЫ: - ".$date."<br><br>";
-
-        echo  "Время UNIX на начала выгрузки котировок:".$timeUnixStart."<br><br>";
-
-        echo "Время UNIX сейчас сейчас: - ".$timenow."<br><br>";
-
-        // КОНВЕРТАЦИЯ ИЗ TIMESTAMP в РЕАЛЬНУЮ ДАТУ
-        //$convertnow =  date('Y-m-d H:i:s', $timenow);
-        // КОНВЕРТАЦИЯ ДАТЫ В TIMESTAMP
-       // echo "Время сейчас конвертируем в : - ".$convertnow."<br><br>";
-
 
         // Рассчитываем сколько нужно свечей
         $countBars = $timenow - $timeUnixStart;
@@ -92,19 +80,32 @@ class PriceController extends AppController {
 
         echo "Нужно запросов к БД:".$NeedRequest."<br>";
 
-
         $SincePar = $timeUnixStart  * 1000;
 
-        show($timeUnixStart);
-        show($countBars);
-        show($SincePar);
 
         $KLINES = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '1m', $SincePar, $countBars);
-        show($KLINES);
+     //   show($KLINES);
 
+        $countKlines = count($KLINES);
 
         // Преобразование МАССИВА в ЭКСПОРТ
-        
+        echo "Кол-во БАРОВ ПО ФАКТУ".$countKlines."<br>";
+
+        echo "TIME,O,H,L,V<br>";
+
+
+        foreach ($KLINES as $key=>$val)
+        {
+            $time = $val[0]/1000;
+            $time = date('Y-m-d H:i:s', $time);
+
+            $voldollar = $val[5]*$val[4];
+
+            echo $time.",".$val[1].",".$val[2].",".$val[3].",".$val[4].",".$voldollar."<br>";
+
+
+
+        }
 
 
 

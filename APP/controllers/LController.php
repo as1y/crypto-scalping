@@ -196,7 +196,7 @@ class LController extends AppController {
         $ARR['rangeh'] = $rangeh;
         $ARR['rangel'] = $rangel;
         $ARR['startbalance'] = $this->BALANCE['total'];
-        $ARR['date'] = date("H:i:s");
+        $ARR['date'] = date("Y-m-d H:i:s");
         $ARR['stamp'] = time();
 
 
@@ -353,7 +353,7 @@ class LController extends AppController {
                 echo "Цена для выставления ордера".$OrderBD['price']."<br>";
 
                 // Скоринг на первичное выставление выставление
-                $resultscoring =  $this->CheckFirstOrder($distance);
+                $resultscoring =  $this->CheckFirstOrder($TREK, $distance);
                 show($resultscoring);
                 // Скоринг на первичное выставление выставление
 
@@ -457,7 +457,7 @@ class LController extends AppController {
             $ARRCHANGE['side'] = $OrderREST['side'];
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
-            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"enter");
+            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"in");
 
             echo "<hr>";
         }
@@ -539,7 +539,7 @@ class LController extends AppController {
             $ARRCHANGE['orderid'] = NULL;
             $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
-            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"exit");
+            $this->AddTracDealTradeBD($TREK, $OrderREST['avgPrice'] , $OrderREST['side'],"out");
 
 
             continue;
@@ -792,7 +792,7 @@ class LController extends AppController {
 
 
 
-    private function CheckFirstOrder($distance){
+    private function CheckFirstOrder($TREK, $distance){
 
 
         // Проверка на дистанцию
@@ -807,6 +807,7 @@ class LController extends AppController {
         // Проверка на глобальный скоринг
 
 
+        $CountPosition = $this->CountActiveOrders($TREK, "3");
 
         if ($distance < 0 && $this->workside == "long") return $RETURN;
         if ($distance > 0 && $this->workside == "short") return $RETURN;
@@ -815,6 +816,12 @@ class LController extends AppController {
         // ПРОВЕРКА НА ЛОНГ
         if ($distance >= 0)
         {
+
+            if ($CountPosition >= $this->maxposition)
+            {
+                echo "Достигнут лимит размера позиции<br>";
+                return $RETURN;
+            }
 
             if ($distance > $this->maxposition)
             {
@@ -954,12 +961,12 @@ class LController extends AppController {
 
         $count = 0;
         if ($stat == 1 ){
-            $count = R::count("orders", 'WHERE idtrek =? AND side=? AND stat=? AND orderid IS NOT NULL', [$TREK['id'], $TREK['workside'], $stat]);
+            $count = R::count("orders", 'WHERE idtrek =? AND status=? AND orderid IS NOT NULL', [$TREK['id'], $stat]);
         }
 
 
         if ($stat == 2 ){
-            $count = R::count("orders", 'WHERE idtrek =? AND side=? AND stat=?', [$TREK['id'], $TREK['workside'], $stat]);
+            $count = R::count("orders", 'WHERE idtrek =? AND status=?', [$TREK['id'], $stat]);
         }
 
         if ($stat == "all"){
@@ -1131,10 +1138,10 @@ class LController extends AppController {
 
         $MASS = [
             'trekid' => $TREK['id'],
+            'trekside' => $TREK['workside'],
             'type' => $type,
             'side' => $side,
-            'dateex' => date("d-m-Y"),
-            'time' => date("H:i:s"),
+            'time' => date("Y-m-d H:i:s"),
             'price' => $price,
         ];
 
