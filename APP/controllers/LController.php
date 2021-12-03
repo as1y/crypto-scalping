@@ -32,14 +32,14 @@ class LController extends AppController {
     private $lot = 0.001; // Базовый заход
     private $RangeH = 75000;
     private $RangeL = 50000;
-    private $step = 100; // Размер шага между ордерами
-    private $stoploss = 8; // Размер шага между ордерами
+    private $step = 140; // Размер шага между ордерами
+    private $stoploss = 10; // Размер шага между ордерами
     private $maxposition = 2;
     private      $maVAL = 7; // Коэффицент для МА
-    private      $maDev = 3; // Отклонение МА
+    private      $maDev = 6; // Отклонение МА
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
-    private      $deltacoef = 4; // Коэффицентр треллинга
+    private      $deltacoef = 5; // Коэффицентр треллинга
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -423,9 +423,12 @@ class LController extends AppController {
                 echo  "Ордер выставлен по цене: ".$OrderBD['price']."<br>";
 
                 // Ордер слишком далеко. Снимаем его из-за ограничений биржи
-                if ($distance >= $this->maxposition && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
+                if ($distance > $this->maxposition && $OrderBD['workside'] == "long") $this->CancelStatus2($OrderBD, $OrderREST);
 
-                if ($distance <= (-1)*$this->maxposition && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
+                if ($distance < (-1)*$this->maxposition && $OrderBD['workside'] == "short") $this->CancelStatus2($OrderBD,$OrderREST);
+
+                $CountPosition = $this->CountActiveOrders($TREK, "3");
+               // if ($CountPosition >= $this->maxposition) $this->CancelStatus2($OrderBD,$OrderREST);
 
           //      if ($this->SCORING === FALSE) $this->CancelStatus2($OrderBD, $OrderREST);
 
@@ -975,6 +978,12 @@ class LController extends AppController {
         if ($stat == 2 ){
             $count = R::count("orders", 'WHERE idtrek =? AND status=?', [$TREK['id'], $stat]);
         }
+
+
+        if ($stat == 3 ){
+            $count = R::count("orders", 'WHERE idtrek =? AND status=?', [$TREK['id'], $stat]);
+        }
+
 
         if ($stat == "all"){
             $count = R::count("orders", 'WHERE idtrek =? AND side=? AND orderid IS NOT NULL', [$TREK['id'], $TREK['workside']]);
