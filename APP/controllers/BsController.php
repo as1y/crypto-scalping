@@ -6,7 +6,7 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class LController extends AppController {
+class BsLController extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";

@@ -105,7 +105,6 @@ function GetMA($KLINES)
 
 function GetRSI($KLINES){
 
-
     $sumplus = 0;
     $summinus = 0;
 
@@ -113,7 +112,7 @@ function GetRSI($KLINES){
 
         $change = $KLINES[$i]['4'] - $KLINES[$i - 1]['4'];
 
-       // echo "ТФ ".$i." | ЗАКРЫТИЕ  ".$KLINES[$i]['4']." | Change: $change <br>   ";
+    //    echo "ТФ ".$i." | ЗАКРЫТИЕ  ".$KLINES[$i]['4']." | Change: $change <br>   ";
 
         if ($change >= 0) $sumplus = $sumplus + $change;
         if ($change < 0) $summinus = $summinus + abs($change);

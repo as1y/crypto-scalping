@@ -17,7 +17,7 @@ class SController extends AppController {
     public $ApiKey = "qzaF8Ut8SmDPK6XkA4fbgCZSuoKV11lMKVLMJU6rlrEPKcz3b6uLGHTRQ1YM9Anv";
     public $SecretKey = "8891gvmiOXz6ITGd8m3QWGEkQXHvBg5LeMOJIy8nvSbqQNviLSBQf7z7YK2mGSbv";
 
- 
+
     // Переменные для стратегии
     public $leverege = 90;
     public $symbol = "BTC/USDT";
@@ -29,14 +29,14 @@ class SController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
     private $workside = "short";
 
-    private $lot = 0.001; // Базовый заход
-    private $RangeH = 75000;
-    private $RangeL = 50000;
-    private $step = 140; // Размер шага между ордерами
-    private $stoploss = 10; // Размер шага между ордерами
-    private $maxposition = 2;
-    private      $maVAL = 7; // Коэффицент для МА
-    private      $maDev = 6; // Отклонение МА
+    private $lot = 0.005; // Базовый заход
+    private $RangeH = 70000;
+    private $RangeL = 30000;
+    private $step = 120; // Размер шага между ордерами
+    private $stoploss = 6; // Размер шага между ордерами
+    private $maxposition = 1;
+    private      $maVAL = 6; // Коэффицент для МА
+    private      $maDev = 3; // Отклонение МА
     private      $maxRSI = 70; // Фильтр по RSI
     private      $minRSI = 30; // Фильтр по RSI
     private      $deltacoef = 5; // Коэффицентр треллинга

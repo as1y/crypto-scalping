@@ -58,7 +58,7 @@ class PriceController extends AppController {
             )
         ));
 
-        $date = "2021-12-02 00:00:00";
+        $date = "2021-12-03 00:00:00";
         $timeUnixStart = strtotime($date);
 
         // Высчитываем сколько прошло минут с начала дня
