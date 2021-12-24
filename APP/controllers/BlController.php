@@ -31,8 +31,8 @@ class BlController extends AppController {
 
     private $lot = 0.002; // Базовый заход
     private $RangeH = 70000;
-    private $RangeL = 30000;
-    private $step = 120; // Размер шага между ордерами
+    private $RangeL = 40000;
+    private $step = 30; // Размер шага между ордерами
     private $stoploss = 6; // Размер шага между ордерами
     private $maxposition = 1;
     private      $maVAL = 6; // Коэффицент для МА
@@ -389,7 +389,7 @@ class BlController extends AppController {
     }
 
 
-    // СТАТУС2 - ПРОВЕРКА НА ИСПОЛНЕННОСТЬ
+    // СТАТУС2 - КОНТРОЛЬ ОТКУПА ПЕРВОГО ЛИМИТНИКА
     private function WorkStat2($TREK, $AllOrdersREST, $pricenow){
 
         $OrdersBD = $this->GetOrdersBD($TREK, 2);
@@ -411,7 +411,7 @@ class BlController extends AppController {
             show($OrderREST);
             var_dump($this->OrderControl($OrderREST));
 
-            // Проверка на исоплненность
+            // Проверка лимитника на ИСПОЛНЕННОСТЬ
             if ($this->OrderControl($OrderREST) === FALSE){
 
                 // ВНЕЗАПНАЯ ПОПАДАНИЕ В СТАТУС "CANCELED"
@@ -491,7 +491,9 @@ class BlController extends AppController {
     }
 
 
-    // СТАТУС3 - ТРЕЛЛИНГ
+
+
+    // СТАТУС3 - ТРЕЛЛИНГ ИЛИ СТОП-ЛОСС
     private function WorkStat3($TREK, $AllOrdersREST, $pricenow){
 
         $OrdersBD = $this->GetOrdersBD($TREK, 3);
@@ -551,6 +553,19 @@ class BlController extends AppController {
             {
                 echo "Пора фиксировать позицию лимитником<br>";
 
+                $ARRCHANGE = [];
+                $ARRCHANGE['status'] = 4;
+                $ARRCHANGE['currentstop'] = NULL;
+                $ARRCHANGE['lastprice'] = NULL;
+                $ARRCHANGE['trallingorderid'] = NULL;
+                $ARRCHANGE['side'] = NULL;
+                $ARRCHANGE['orderid'] = NULL;
+                $ARRCHANGE['maxprice'] = NULL;
+                $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+                continue;
+
+
 
             }
 
@@ -579,6 +594,53 @@ class BlController extends AppController {
 
             // Работа с ордерами вторго статуса
             echo "<b>Работа СТАТУС 4</b><br>";
+
+            if ($OrderBD['orderid'] == NULL){
+
+                echo "Выставляем первый лимитник!!!<br><br>";
+                $resultscoring['side'] = ($OrderBD['workside'] == 'long') ? 'short' : 'long';
+                $resultscoring['result'] = "LIMIT";
+
+                $order = $this->CreateFirstOrder($OrderBD, $resultscoring, $pricenow);
+                show($order);
+
+                $ARRCHANGE = [];
+                $ARRCHANGE['orderid'] = $order['id'];
+                $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+                continue;
+
+            }
+
+            $OrderREST = $this->GetOneOrderREST($OrderBD['orderid'], $AllOrdersREST);
+            echo "<b>REST LIMIT ORDER: </b> <br>";
+            show($OrderREST);
+
+
+            if ($this->OrderControl($OrderREST) === FALSE){
+
+                // ВНЕЗАПНАЯ ПОПАДАНИЕ В СТАТУС "CANCELED"
+                if ($OrderREST['order_status'] == "Cancelled"){
+                    echo "<font color='#8b0000'>ОРДЕР отменен (canceled)!!! </font> <br>";
+                    echo "Отменяем его выставление!  <br>";
+                    $ARRCHANGE = [];
+                    $ARRCHANGE['orderid'] = NULL;
+                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+                    continue;
+                }
+
+
+                echo "Текущая цена лонга:".$pricenow."<br>";
+                echo "Ордер выставлен по цене:".$OrderREST['price']."<br>";
+
+
+                continue;
+
+            }
+
+
+
 
 
 
@@ -871,8 +933,6 @@ class BlController extends AppController {
 
         $sideorder = $this->GetTextSide($resultscoring['side']);
 
-        // $inverted_side = ($resultscoring['side'] == 'buy') ? 'sell' : 'buy';
-
 
         show($sideorder);
         var_dump($OrderBD['amount']);
@@ -887,8 +947,8 @@ class BlController extends AppController {
                 'reduce_only' => false,
             ];
 
-            if ($this->workside == "long") $price = $pricenow - $this->Basestep;
-            if ($this->workside == "short") $price = $pricenow + $this->Basestep;
+            if ($sideorder == "long") $price = $pricenow - $this->Basestep;
+            if ($sideorder == "short") $price = $pricenow + $this->Basestep;
 
             $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$sideorder, $OrderBD['amount'], $price, $params);
             return $order;
