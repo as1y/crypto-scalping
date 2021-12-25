@@ -531,6 +531,7 @@ class BlController extends AppController {
 
                 show($OrderREST);
 
+
                 // ОЧИЩАЕМ БД!
                 $ARRCHANGE = [];
                 $ARRCHANGE['status'] = 1;
@@ -541,7 +542,7 @@ class BlController extends AppController {
                 $ARRCHANGE['orderid'] = NULL;
                 $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
-                $this->AddTracDealTradeBD($TREK, $OrderREST['price'] , $OrderREST['side'],"out");
+                $this->AddTracDealTradeBD($TREK, $OrderREST['last_exec_price'] , $OrderREST['side'],"out");
                 $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST, true); // Исполнен статус 2
 
 
@@ -561,10 +562,20 @@ class BlController extends AppController {
             {
                 echo "Пора фиксировать позицию лимитником<br>";
 
+                echo "<b><font color='green'>ТРЕЛЛИНГ ПРОШЕЛ УСПЕШНО:</font></b> <br>";
+
+                // Отмена ордера CONDITIONAL
+                $params = [
+                    'stop_order_id' => $OrderBD['trallingorderid'],
+                ];
+                // Функция отмены стоп ордера
+                $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol,$params) ;
+
                 $ARRCHANGE = [];
                 $ARRCHANGE['status'] = 4;
                 $ARRCHANGE['orderid'] = NULL;
                 $ARRCHANGE['maxprice'] = NULL;
+                $ARRCHANGE['trallingorderid'] = NULL;
                 $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
 
                 continue;
@@ -667,13 +678,6 @@ class BlController extends AppController {
             {
 
                 echo "<b><font color='green'>ТРЕЛЛИНГ ПРОШЕЛ УСПЕШНО:</font></b> <br>";
-
-                // Отмена ордера CONDITIONAL
-                $params = [
-                    'stop_order_id' => $OrderBD['trallingorderid'],
-                ];
-                // Функция отмены стоп ордера
-                $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol,$params) ;
 
                 $ARRCHANGE = [];
                 $ARRCHANGE['status'] = 1;
@@ -998,6 +1002,13 @@ class BlController extends AppController {
             if ($resultscoring['side'] == "long") $price = $pricenow - $this->Basestep;
             if ($resultscoring['side'] == "short") $price = $pricenow + $this->Basestep;
 
+            // Прибавляем один пункт если мы выходим из позиции
+            if ($reduceonly == true)
+            {
+                if ($resultscoring['side'] == "long") $price = $pricenow - $this->Basestep;
+                if ($resultscoring['side'] == "short") $price = $pricenow + $this->Basestep;
+            }
+
             $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$sideorder, $OrderBD['amount'], $price, $params);
             return $order;
 
@@ -1269,7 +1280,11 @@ class BlController extends AppController {
             $pexit = $OrderREST['price'];
 
             if ($STOP == false) $delta = changemet($enter, $pexit) + 0.05;
-            if ($STOP == true) $delta = changemet($enter, $pexit) - 0.05;
+            if ($STOP == true)
+            {
+                $pexit = $OrderREST['last_exec_price'];
+                $delta = changemet($enter, $pexit) - 0.05;
+            }
 
 
             $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
@@ -1281,7 +1296,10 @@ class BlController extends AppController {
             $pexit = $OrderREST['price'];
 
             if ($STOP == false) $delta = changemet($enter, $pexit) + 0.05;
-            if ($STOP == true) $delta = changemet($enter, $pexit) - 0.05;
+            if ($STOP == true) {
+                $pexit = $OrderREST['last_exec_price'];
+                $delta = changemet($enter, $pexit) - 0.05;
+            }
 
 
             $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
