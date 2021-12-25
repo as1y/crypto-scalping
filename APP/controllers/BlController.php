@@ -639,7 +639,7 @@ class BlController extends AppController {
                 echo "Ордер выставлен по цене:".$OrderREST['price']."<br>";
 
 
-                if ($this->workside == "long" && $OrderREST['price'] > $pricenow)
+                if ($this->workside == "long" && $OrderREST['price'] > ($pricenow + $this->Basestep)  )
                 {
 
                     echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
@@ -1272,7 +1272,7 @@ class BlController extends AppController {
             if ($STOP == true) $delta = changemet($enter, $pexit) - 0.05;
 
 
-            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['amount'];
+            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
         }
 
         if ($OrderBD['workside'] == "short")
@@ -1284,7 +1284,7 @@ class BlController extends AppController {
             if ($STOP == true) $delta = changemet($enter, $pexit) - 0.05;
 
 
-            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['amount'];
+            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
         }
 
         $ACTBAL = $this->GetBal()['USDT']['total'];
