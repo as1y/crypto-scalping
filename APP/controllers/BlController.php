@@ -11,9 +11,6 @@ class BlController extends AppController {
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
-
-    // BINANCE
-
     public $ApiKey = "9juzIdfqflVMeQtZf9";
     public $SecretKey = "FwUD2Ux5sjLo8DyifqYr4cfWgxASblk7CZo7";
 
@@ -29,10 +26,10 @@ class BlController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
     private $workside = "long";
 
-    private $lot = 0.002; // Базовый заход
+    private $lot = 0.004; // Базовый заход
     private $RangeH = 70000;
     private $RangeL = 40000;
-    private $step = 20; // Размер шага между ордерами
+    private $step = 80; // Размер шага между ордерами
     private $stoploss = 6; // Размер шага между ордерами
     private $maxposition = 1;
     private      $maVAL = 6; // Коэффицент для МА
@@ -433,7 +430,7 @@ class BlController extends AppController {
                 echo "Ордер выставлен по цене:".$OrderREST['price']."<br>";
 
 
-                // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ
+                // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
                 if ($this->workside == "long" && ($pricenow - $this->Basestep) > $OrderREST['price'])
                 {
 
@@ -452,6 +449,28 @@ class BlController extends AppController {
                     continue;
 
                 }
+
+                if ($this->workside == "short" && ($pricenow + $this->Basestep) < $OrderREST['price'])
+                {
+
+                    echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+                    // Отменяем текущий ордер
+                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol);
+                    show($cancel);
+
+                    $ARRCHANGE = [];
+                    $ARRCHANGE['orderid'] = NULL;
+                    $ARRCHANGE['type'] = NULL;
+                    $ARRCHANGE['side'] = NULL;
+                    $ARRCHANGE['status'] = 1;
+                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+                    continue;
+
+                }
+
+
+
 
                 continue;
 
@@ -521,7 +540,7 @@ class BlController extends AppController {
 
             $OrderREST = $this->GetOneOrderREST($OrderBD['trallingorderid'], $AllOrdersREST); // Ордер РЕСТ статус 2
             echo "<b>REST STOP ORDER: </b> <br>";
-           // show($OrderREST);
+            // show($OrderREST);
 
 
             // СТАТУС ОРДЕРА СТОП-ЛОСС
@@ -616,6 +635,7 @@ class BlController extends AppController {
                 $resultscoring['side'] = ($OrderBD['workside'] == 'long') ? 'short' : 'long';
                 $resultscoring['result'] = "LIMIT";
 
+
                 $order = $this->CreateFirstOrder($OrderBD, $resultscoring, $pricenow, true);
                 show($order);
 
@@ -650,7 +670,7 @@ class BlController extends AppController {
                 echo "Ордер выставлен по цене:".$OrderREST['price']."<br>";
 
 
-                if ($this->workside == "long" && $OrderREST['price'] > ($pricenow + $this->Basestep)  )
+                if ($this->workside == "long" && $OrderREST['price'] > ($pricenow + $this->Basestep*2)  )
                 {
 
                     echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
@@ -666,6 +686,24 @@ class BlController extends AppController {
 
 
                 }
+
+                if ($this->workside == "short" && $OrderREST['price'] < ($pricenow - $this->Basestep*2)  )
+                {
+
+                    echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+                    // Отменяем текущий ордер
+                    $cancel = $this->EXCHANGECCXT->cancel_order($OrderBD['orderid'], $this->symbol);
+                    show($cancel);
+
+                    $ARRCHANGE = [];
+                    $ARRCHANGE['orderid'] = NULL;
+                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+                    continue;
+
+
+                }
+
 
 
                 continue;
@@ -712,10 +750,10 @@ class BlController extends AppController {
         $pricenow = $this->GetPriceSide($this->symbol, $this->workside);
         // Запрашиваем заново $pricenow
 
-        echo "Цена необходимая чтобы зайти в зону треллинга:".($OrderBD['lastprice'] + $this->step)."<br>";
 
         if ($OrderBD['side'] == "Buy")
         {
+            echo "Цена необходимая чтобы зайти в зону треллинга:".($OrderBD['lastprice'] + $this->step)."<br>";
 
             $delta = 0;
             if ($pricenow > ($OrderBD['lastprice'] + $this->step) )
@@ -743,7 +781,38 @@ class BlController extends AppController {
 
         }
 
+        if ($OrderBD['side'] == "Sell")
+        {
+            echo "Цена необходимая чтобы зайти в зону треллинга:".($OrderBD['lastprice'] - $this->step)."<br>";
 
+            $delta = 0;
+            if ($pricenow < ($OrderBD['lastprice'] - $this->step) )
+            {
+                echo "<font color='green'> ЗАШЛИ В ЗОНУ ТРЕЛЛИНГА</font><br>";
+
+
+                // Перезаписываем максцену в треллинге
+                if ($pricenow < $OrderBD['maxprice'] || $OrderBD['maxprice'] == 0 )
+                {
+                    echo "Перезаписываем MAXPRICE<br> ";
+                    $ARRCHANGE['maxprice'] = $pricenow;
+                    $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+                    $OrderBD['maxprice'] = $pricenow;
+                }
+
+
+                $delta = $pricenow - $OrderBD['maxprice'];
+
+                echo "Максимально зафиксированная цена: ".$OrderBD['maxprice']."<br>";
+                echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
+
+            }
+
+            if ($delta > $this->step/$this->deltacoef) return true;
+
+
+
+        }
 
 
         return false;
@@ -789,7 +858,7 @@ class BlController extends AppController {
     {
 
 
-        return true;
+    //    return true;
 
 
         $otklonenie = 0;
@@ -999,14 +1068,25 @@ class BlController extends AppController {
                 'reduce_only' => $reduceonly,
             ];
 
-            if ($resultscoring['side'] == "long") $price = $pricenow - $this->Basestep;
-            if ($resultscoring['side'] == "short") $price = $pricenow + $this->Basestep;
+            if ($reduceonly == false)
+            {
+                if ($resultscoring['side'] == "long") $price = $pricenow - $this->Basestep;
+                if ($resultscoring['side'] == "short") $price = $pricenow;
+
+            }
 
             // Прибавляем один пункт если мы выходим из позиции
             if ($reduceonly == true)
             {
+
                 if ($resultscoring['side'] == "long") $price = $pricenow - $this->Basestep;
                 if ($resultscoring['side'] == "short") $price = $pricenow + $this->Basestep;
+
+                // show($price);
+                // exit("1112");
+
+
+
             }
 
             $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$sideorder, $OrderBD['amount'], $price, $params);
@@ -1295,10 +1375,10 @@ class BlController extends AppController {
             $enter = $OrderBD['lastprice'];
             $pexit = $OrderREST['price'];
 
-            if ($STOP == false) $delta = changemet($enter, $pexit) + 0.05;
+            if ($STOP == false) $delta = changemet($pexit, $enter ) + 0.05;
             if ($STOP == true) {
                 $pexit = $OrderREST['last_exec_price'];
-                $delta = changemet($enter, $pexit) - 0.05;
+                $delta = changemet($pexit, $enter) - 0.05;
             }
 
 
@@ -1309,11 +1389,11 @@ class BlController extends AppController {
 
         $MASS = [
             'trekid' => $TREK['id'],
-            'side' => $OrderBD['side'],
+            'side' => $this->workside,
             'dateex' => date("d-m-Y"),
             'timeexit' => date("H:i:s"),
             'enter' => $OrderBD['price'],
-            'exit' => $OrderREST['price'],
+            'exit' => $pexit,
             'amount' => $OrderREST['qty'],
             'dollar' => $dollar,
             'delta' => $delta,

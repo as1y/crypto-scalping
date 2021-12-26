@@ -5,7 +5,7 @@ require 'vendor/autoload.php';
 require 'lib/functions.php'; //ОБЩИЕ ФУНКЦИИ
 require 'lib/functions_app.php'; //ФУНКЦИИ ПРИЛОЖЕНИЯ
 
-$url = "http://testbot111.xyz/s";
+$url = "http://testbot111.xyz/bs";
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
