@@ -199,17 +199,19 @@ class FlowController extends AppController {
     {
 
 
-            echo "<h3> ЗАПУСК ПОТОКА. СТАТУС-1 </h3> <br>";
-           // show($FLOW);
+            echo "<h3> РАБОТА ПОТОКА. СТАТУС-1 </h3> <br>";
 
+        $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
+
+        // show($FLOW);
             // ВЫСТАВЛЯЕМ ПЕРВЫЙ ЛИМИТНИК
         if ($FLOW['limitid'] == NULL){
 
                 echo "Базовый лимитник пустой. Выставляем<br>";
-
-            $order = $this->CreateFirstOrder($FLOW);
+            $order = $this->CreateFirstOrder($FLOW, $pricenow);
             $ARRCHANGE = [];
             $ARRCHANGE['limitid'] = $order['id'];
+            $ARRCHANGE['pricelimit'] = $order['price'];
             $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
             return true;
@@ -218,18 +220,114 @@ class FlowController extends AppController {
 
 
             // ПРОВЕРЯТЬ СТАТУС ЛИМИТНИКА
+        $OrderREST = $this->GetOneOrderREST($FLOW['limitid'], $AllOrdersREST); // Ордер РЕСТ статус 2
 
-        show($FLOW);
+        //show($OrderREST);
+        var_dump($this->OrderControl($OrderREST));
 
-            // ПЕРЕВЫСТАВЛЯТЬ ЛИМИТНИК
+        // КОНТРОЛИРУЕМ ОТКУП ЛИМИТНИКА
+        if ($this->OrderControl($OrderREST) === FALSE){
+
+            // ВНЕЗАПНАЯ ПОПАДАНИЕ В СТАТУС "CANCELED"
+            if ($OrderREST['order_status'] == "Cancelled"){
+                echo "<font color='#8b0000'>ОРДЕР отменен (canceled)!!! </font> <br>";
+                echo "Отменяем его выставление!  <br>";
+                $ARRCHANGE = [];
+                $ARRCHANGE['limitid'] = NULL;
+                $ARRCHANGE['pricelimit'] = NULL;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+                return true;
+            }
 
 
+            echo "Текущая цена:".$pricenow."<br>";
+            echo "Ордер выставлен по цене:".$FLOW['pricelimit']."<br>";
+
+
+            // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
+            if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
+            {
+
+                echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+                // Отменяем текущий ордер
+                $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+                show($cancel);
+
+                $ARRCHANGE = [];
+                $ARRCHANGE['limitid'] = NULL;
+                $ARRCHANGE['pricelimit'] = NULL;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+                return true;
+
+            }
+
+            if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep) < $FLOW['pricelimit'])
+            {
+
+                echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+                // Отменяем текущий ордер
+                $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+                show($cancel);
+
+                $ARRCHANGE = [];
+                $ARRCHANGE['limitid'] = NULL;
+                $ARRCHANGE['pricelimit'] = NULL;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+                return true;
+
+            }
+
+
+            return true;
+
+        }
+
+        echo "<font color='green'>Ордер исполнен</font><br>";
+
+
+           // show($FLOW);
+
+            $order = $this->MarketOrder($FLOW);
             // ЕСЛИ ЗАШЕЛ, ТО ВЫКУПАТЬ ПО МАРКЕТУ ОБРАТКУ
+
+            show($order);
+
+
+        $ARRCHANGE = [];
+        $ARRCHANGE['limitid'] = NULL;
+        $ARRCHANGE['pricemarket'] = $order['price'];
+        $ARRCHANGE['status'] = 2;
+        //   $ARRCHANGE['lastprice'] = $order['last_exec_price'];
+        $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
 
 
             //  ЕСЛИ ЗАШЕЛ И ТУДА И СЮДА, ТО МЕНЯТЬ НА СТАТУС 2
 
 
+
+        return true;
+    }
+
+    private function WorkStatus2($FLOW)
+    {
+
+        echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3> <br>";
+        $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
+
+        $priceENTER = ($FLOW['pricelimit'] + $FLOW['pricemarket'])/2;
+        $priceENTER = round($priceENTER);
+
+        echo "<b>Текущая цена по указателю:</b> ".$pricenow."<br>";
+        echo "<b>Средняя цена входа в поток:</b> ".$priceENTER."<br>";
+
+        // Определение КОНТР тренда по которму будем треллить
+        $contrTREND = ($FLOW['pointer'] == 'long') ? 'short' : 'long';
+
+        echo "Работаем с треллингом по контр тренду: ".$contrTREND."<br>";
 
 
 
@@ -241,6 +339,21 @@ class FlowController extends AppController {
 
 
 
+    private function MarketOrder($FLOW)
+    {
+
+        $param = [
+            'reduce_only' => false,
+        ];
+
+        $inverted_side = ($FLOW['pointer'] == 'long') ? 'Sell' : 'Buy';
+        //show($inverted_side);
+
+        $order = $this->EXCHANGECCXT->create_order($this->symbol,"market",$inverted_side, $this->lot, null, $param);
+
+        return $order;
+
+    }
 
 
     private function AddFlow($SCRIPT, $PARAMS)
@@ -268,15 +381,59 @@ class FlowController extends AppController {
         return $RESULT;
     }
 
+    public function OrderControl($order){
+
+        if ($order['order_status'] == "Cancelled") return false;
+
+
+//        if (!empty($order['amount']) && !empty($order['filled'])){
+//            if ($order['amount'] == $order['filled']) return true;
+//        }
+
+        if ($order['order_status'] == "Filled") return true;
+
+        return false;
+
+    }
+
+    private function GetOneOrderREST($id, $AllOrdersREST)
+    {
+
+        foreach ($AllOrdersREST as $key=>$val)
+        {
+            if ($val['id'] == $id) return $val['info'];
+
+
+        }
+
+        $order = $this->EXCHANGECCXT->fetch_order($id,$this->symbol)['info'];
+        //    $order['status'] = $order['status'];
+        $order['amount'] = $order['qty'];
+        $order['price'] = $order['price'];
+
+        // $MASS[$order['id']] = $order;
+        return $order;
+
+
+
+    }
+
+
 
     public function GetTextSide($textside){
         if ($textside == "long" || $textside == "LONG") $sideorder = "buy";
         if ($textside == "short" || $textside == "SHORT") $sideorder = "sell";
         return $sideorder;
     }
-     
 
-    private function CreateFirstOrder($FLOW){
+    private function GetPriceSide($symbol, $side)
+    {
+        if ($side == "buy" || $side == "long" || $side = "LONG") $price = $this->ORDERBOOK[$symbol]['bids'][0][0];
+        if ($side == "sell" || $side == "short" || $side = "SHORT") $price = $this->ORDERBOOK[$symbol]['asks'][0][0];
+        return $price;
+    }
+
+    private function CreateFirstOrder($FLOW, $pricenow){
 
 
         $sideorder = $this->GetTextSide($FLOW['pointer']);
@@ -287,7 +444,6 @@ class FlowController extends AppController {
             'reduce_only' => false,
         ];
 
-        $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
 
 
         if ($FLOW['pointer'] == "long") $price = $pricenow - $this->Basestep;
@@ -313,7 +469,6 @@ class FlowController extends AppController {
 
 
         $ARR['emailex'] = $this->emailex;
-        $ARR['action'] = "Monitor";
         $ARR['symbol'] = $this->symbol;
         $ARR['lever'] = $this->leverege;
         $ARR['startbalance'] = $this->BALANCE['total'];
@@ -330,58 +485,6 @@ class FlowController extends AppController {
 
     }
 
-
-    private function AddTrek()
-    {
-
-
-
-        // ДОБАВЛЕНИЕ ТРЕКА
-
-        echo "Рассчет ордеров<br>";
-
-        $delta = $this->RangeH - $this->RangeL;
-
-        $CountOrders = round($delta/$this->step);
-
-        // Проверка на минимальный шаг
-        echo "ШАГ ЦЕНЫ: ".$this->step."<br>";
-        echo "КОЛ-ВО ОРДЕРОВ: ".$CountOrders."<br>";
-
-
-        //$pricenow = $this->GetPriceSide($this->symbol, "long");
-        // $pricenow = round($pricenow);
-
-
-        $this->MASSORDERS = $this->GenerateStepPrice($CountOrders);
-
-
-        // Добавление ТРЕКА в БД
-        $rangeh = $this->RangeH;
-        $rangel = $this->RangeL;
-
-
-
-
-
-        // Добавление ордеров в БД
-        foreach ($this->MASSORDERS as $key=>$val){
-            $ARR = [];
-            $ARR['idtrek'] = $idtrek;
-            $ARR['count'] = $key;
-            $ARR['workside'] = $this->workside;
-            $ARR['status'] = 1;
-            $ARR['amount'] = $this->lot;
-            $ARR['price'] = $val['price'];
-            $this->AddARRinBD($ARR, "orders");
-        }
-
-
-
-        // Добавление ордеров в БД
-        return true;
-
-    }
 
 
 
