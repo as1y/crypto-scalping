@@ -107,30 +107,54 @@ class FlowController extends AppController {
         }
 
 
+       // show($SCRIPT);
 
-        show($SCRIPT);
+        // Старт скрипта
+        $this->StartScript($SCRIPT);
 
-        //$this->StartTrek($SCRIPT);
 
-        // Контроль потоков
-        $this->FlowControl();
+
+
+        // КОНТРОЛЬ РАБОТЫ ПОТОКОВ. БАЛАНСИРОВКА
+        $this->FlowControl($SCRIPT);
+
 
         // Работа конкретного потока
-        $this->FlowWork();
+        $this->FlowWork($SCRIPT);
 
 
 
 
 
+        // Завершение скрипта
+        $this->StopScript($SCRIPT);
+        $this->LogZapuskov($SCRIPT);
 
     }
 
 
 
-    public function FlowControl()
+    public function FlowControl($SCRIPT)
     {
-
             echo "<h2> Контроль потоков </h2> <br>";
+
+        $FLOWS = $this->GetFlowBD($SCRIPT);
+
+          // Если потоки есть. Дальше работаем с ними
+        if (empty($FLOWS)) {
+            echo "Потока нет. Создаем первый<br>";
+            $PARAMS = [];
+            $this->AddFlow($SCRIPT, $PARAMS);
+            return true;
+        }
+
+
+        // ЗАПУСК РАБОЧИХ ПОТОКОВ
+        echo "Контроль действующих потоков <br>";
+        foreach ($FLOWS as $key => $FLOW) {
+            echo "КОНТРОЛЬ ПОТОКА  ".$FLOW['id']."<br>";
+        }
+
 
 
 
@@ -144,10 +168,69 @@ class FlowController extends AppController {
 
 
 
-    public function FlowWork()
+    public function FlowWork($SCRIPT)
     {
 
-        echo "<h2> Работа конкретного потока </h2> <br>";
+
+        $AllOrdersREST = $this->GetAllOrdersREST();
+        // Проверка ордеров на наличие в БД КОСТЫЛЬ
+        if ($AllOrdersREST === FALSE){
+            echo  "Выдался пустой REST<br>";
+            return false;
+        }
+
+        $FLOWS = $this->GetFlowBD($SCRIPT);
+
+        foreach ($FLOWS as $key => $FLOW) {
+
+            echo "<b> ОБРАБОТКА ПОТОКА СО ID  ".$FLOW['id']." </b> <br>";
+
+            $f = 'WorkStatus' . $FLOW['status'];
+            $this->$f($FLOW, $AllOrdersREST);
+
+        }
+
+        return true;
+    }
+
+
+
+    private function WorkStatus1($FLOW, $AllOrdersREST)
+    {
+
+
+            echo "<h3> ЗАПУСК ПОТОКА. СТАТУС-1 </h3> <br>";
+           // show($FLOW);
+
+            // ВЫСТАВЛЯЕМ ПЕРВЫЙ ЛИМИТНИК
+        if ($FLOW['limitid'] == NULL){
+
+                echo "Базовый лимитник пустой. Выставляем<br>";
+
+            $order = $this->CreateFirstOrder($FLOW);
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = $order['id'];
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            return true;
+
+        }
+
+
+            // ПРОВЕРЯТЬ СТАТУС ЛИМИТНИКА
+
+        show($FLOW);
+
+            // ПЕРЕВЫСТАВЛЯТЬ ЛИМИТНИК
+
+
+            // ЕСЛИ ЗАШЕЛ, ТО ВЫКУПАТЬ ПО МАРКЕТУ ОБРАТКУ
+
+
+            //  ЕСЛИ ЗАШЕЛ И ТУДА И СЮДА, ТО МЕНЯТЬ НА СТАТУС 2
+
+
+
 
 
 
@@ -160,11 +243,61 @@ class FlowController extends AppController {
 
 
 
+    private function AddFlow($SCRIPT, $PARAMS)
+    {
+
+        echo "Добавляем поток! <br>";
+
+        $ARR['scriptid'] = $SCRIPT['id'];
+        $ARR['status'] = 1;
+        $ARR['pointer'] = "long";
+        $ARR['stamp'] = time();
 
 
+        $this->AddARRinBD($ARR, "flows");
+        echo "<b><font color='green'>ДОБАВИЛИ ПОТОК</font></b>";
+        // Добавление ТРЕКА в БД
+
+        return true;
+
+    }
 
 
+    private function GetAllOrdersREST(){
+        $RESULT = $this->EXCHANGECCXT->fetch_orders($this->symbol, null, 100);
+        return $RESULT;
+    }
 
+
+    public function GetTextSide($textside){
+        if ($textside == "long" || $textside == "LONG") $sideorder = "buy";
+        if ($textside == "short" || $textside == "SHORT") $sideorder = "sell";
+        return $sideorder;
+    }
+     
+
+    private function CreateFirstOrder($FLOW){
+
+
+        $sideorder = $this->GetTextSide($FLOW['pointer']);
+        show($sideorder);
+
+        $params = [
+            'time_in_force' => "PostOnly",
+            'reduce_only' => false,
+        ];
+
+        $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
+
+
+        if ($FLOW['pointer'] == "long") $price = $pricenow - $this->Basestep;
+        if ($FLOW['pointer'] == "short") $price = $pricenow;
+
+        $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$sideorder, $this->lot, $price, $params);
+        return $order;
+
+
+    }
 
 
 
@@ -291,6 +424,14 @@ class FlowController extends AppController {
         $terk = R::findOne("script", 'WHERE emailex =?', [$this->emailex]);
         return $terk;
     }
+
+
+    private function GetFlowBD($SCRIPT)
+    {
+        $flows = R::findAll("flows", 'WHERE scriptid =?', [$SCRIPT['id']]);
+        return $flows;
+    }
+
 
 
 

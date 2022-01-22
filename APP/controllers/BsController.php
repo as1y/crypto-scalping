@@ -274,8 +274,6 @@ class BsController extends AppController {
 
         $AllOrdersREST = $this->GetAllOrdersREST();
         // Проверка ордеров на наличие в БД КОСТЫЛЬ
-
-
         if ($AllOrdersREST === FALSE){
             echo  "Выдался пустой REST<br>";
             return false;
@@ -1218,6 +1216,7 @@ class BsController extends AppController {
     }
 
 
+
     private function EkranSymbol()
     {
         $newsymbol = str_replace("/", "", $this->symbol);
@@ -1280,14 +1279,8 @@ class BsController extends AppController {
 
 
     private function GetAllOrdersREST(){
-
         $RESULT = $this->EXCHANGECCXT->fetch_orders($this->symbol, null, 100);
-
-
-
         return $RESULT;
-
-
     }
 
 
