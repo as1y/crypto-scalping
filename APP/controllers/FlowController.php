@@ -20,20 +20,17 @@ class FlowController extends AppController {
     public $symbol = "BTC/USDT";
     public $Basestep = 0.5;
     public $emailex  = "raskrutkaweb@yandex.ru"; // Сумма захода USD
-    public $namebdex = "treks";
 
 
     // ПАРАМЕТРЫ СТРАТЕГИИ
-    private $workside = "long";
 
     private $lot = 0.001; // Базовый заход
-    private $RangeH = 70000;
-    private $RangeL = 40000;
-    private $step = 15; // Размер шага между ордерами
+    private $trellingBEGIN = 50; // Через сколько пунктов начинается треллинг
+    private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
+
+
     private $stoploss = 40; // Размер шага между ордерами
-    private $maxposition = 1;
-    private      $maDev = 20; // Отклонение МА
-    private      $deltacoef = 4; // Коэффицентр треллинга
+
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -293,12 +290,11 @@ class FlowController extends AppController {
             $order = $this->MarketOrder($FLOW);
             // ЕСЛИ ЗАШЕЛ, ТО ВЫКУПАТЬ ПО МАРКЕТУ ОБРАТКУ
 
-            show($order);
 
 
         $ARRCHANGE = [];
         $ARRCHANGE['limitid'] = NULL;
-        $ARRCHANGE['pricemarket'] = $order['price'];
+        $ARRCHANGE['pricemarket'] = $pricenow;
         $ARRCHANGE['status'] = 2;
         //   $ARRCHANGE['lastprice'] = $order['last_exec_price'];
         $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
@@ -316,7 +312,11 @@ class FlowController extends AppController {
     {
 
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3> <br>";
-        $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
+
+        // Определение КОНТР тренда по которму будем РАБОТАТЬ
+        $contrTREND = ($FLOW['pointer'] == 'long') ? 'short' : 'long';
+
+        $pricenow = $this->GetPriceSide($this->symbol, $contrTREND);
 
         $priceENTER = ($FLOW['pricelimit'] + $FLOW['pricemarket'])/2;
         $priceENTER = round($priceENTER);
@@ -324,10 +324,11 @@ class FlowController extends AppController {
         echo "<b>Текущая цена по указателю:</b> ".$pricenow."<br>";
         echo "<b>Средняя цена входа в поток:</b> ".$priceENTER."<br>";
 
-        // Определение КОНТР тренда по которму будем треллить
-        $contrTREND = ($FLOW['pointer'] == 'long') ? 'short' : 'long';
 
         echo "Работаем с треллингом по контр тренду: ".$contrTREND."<br>";
+
+        // Проверяем в треллинге мы или нет
+        $this->TrallingControl($FLOW, $contrTREND,$priceENTER, $pricenow);
 
 
 
@@ -337,6 +338,44 @@ class FlowController extends AppController {
     }
 
 
+
+    private function TrallingControl($FLOW, $contrTREND, $priceENTER, $pricenow){
+
+        $delta = 0;
+
+        if ($contrTREND == "short")
+        {
+            $zone = $priceENTER - $pricenow;
+            echo "Отклонения от точки входа".$zone."<br>";
+
+            if ($zone > $this->trellingBEGIN)
+            {
+                echo "<font color='green'> ЗАШЛИ В ЗОНУ ТРЕЛЛИНГА</font><br>";
+
+                // Перезаписываем максцену в треллинге
+                if ($pricenow < $FLOW['maxprice'] || $FLOW['maxprice'] == 0 )
+                {
+                    echo "Перезаписываем MAXPRICE<br> ";
+                    $ARRCHANGE['maxprice'] = $pricenow;
+                    $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+                    $FLOW['maxprice'] = $pricenow;
+                }
+
+                // Отклонение от максимальной цены
+                $delta = $pricenow - $FLOW['maxprice'];
+                echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
+                echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
+
+            }
+
+
+        }
+
+
+
+
+
+    }
 
 
     private function MarketOrder($FLOW)
@@ -364,6 +403,7 @@ class FlowController extends AppController {
         $ARR['scriptid'] = $SCRIPT['id'];
         $ARR['status'] = 1;
         $ARR['pointer'] = "long";
+        $ARR['maxprice'] = 0;
         $ARR['stamp'] = time();
 
 
@@ -542,7 +582,6 @@ class FlowController extends AppController {
     private function AddARRinBD($ARR, $BD = false)
     {
 
-        if ($BD == false) $BD = $this->namebdex;
 
         $tbl = R::dispense($BD);
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
@@ -567,7 +606,6 @@ class FlowController extends AppController {
     private function ChangeARRinBD($ARR, $id, $BD = false)
     {
 
-        if ($BD == false) $BD = $this->namebdex;
 
         echo('-----------------');
         echo('-----------------');
