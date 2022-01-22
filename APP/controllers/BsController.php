@@ -26,17 +26,14 @@ class BsController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
     private $workside = "short";
 
-    private $lot = 0.004; // Базовый заход
+    private $lot = 0.001; // Базовый заход
     private $RangeH = 70000;
     private $RangeL = 40000;
-    private $step = 80; // Размер шага между ордерами
-    private $stoploss = 6; // Размер шага между ордерами
+    private $step = 15; // Размер шага между ордерами
+    private $stoploss = 40; // Размер шага между ордерами
     private $maxposition = 1;
-    private      $maVAL = 6; // Коэффицент для МА
-    private      $maDev = 3; // Отклонение МА
-    private      $maxRSI = 70; // Фильтр по RSI
-    private      $minRSI = 30; // Фильтр по RSI
-    private      $deltacoef = 5; // Коэффицентр треллинга
+    private      $maDev = 20; // Отклонение МА
+    private      $deltacoef = 4; // Коэффицентр треллинга
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -753,10 +750,10 @@ class BsController extends AppController {
 
         if ($OrderBD['side'] == "Buy")
         {
-            echo "Цена необходимая чтобы зайти в зону треллинга:".($OrderBD['lastprice'] + $this->step)."<br>";
+            echo "Цена необходимая чтобы зайти в зону треллинга:".($OrderBD['lastprice'] + $this->step*$this->deltacoef)."<br>";
 
             $delta = 0;
-            if ($pricenow > ($OrderBD['lastprice'] + $this->step) )
+            if ($pricenow > ($OrderBD['lastprice'] + $this->step*$this->deltacoef) )
             {
                 echo "<font color='green'> ЗАШЛИ В ЗОНУ ТРЕЛЛИНГА</font><br>";
                 // Перезаписываем максцену в треллинге
@@ -775,7 +772,7 @@ class BsController extends AppController {
 
             }
 
-            if ($delta > $this->step/$this->deltacoef) return true;
+            if ($delta > $this->step) return true;
 
 
 
@@ -783,10 +780,10 @@ class BsController extends AppController {
 
         if ($OrderBD['side'] == "Sell")
         {
-            echo "Цена необходимая чтобы зайти в зону треллинга:".($OrderBD['lastprice'] - $this->step)."<br>";
+            echo "Цена необходимая чтобы зайти в зону треллинга:".($OrderBD['lastprice'] - $this->step*$this->deltacoef)."<br>";
 
             $delta = 0;
-            if ($pricenow < ($OrderBD['lastprice'] - $this->step) )
+            if ($pricenow < ($OrderBD['lastprice'] - $this->step*$this->deltacoef) )
             {
                 echo "<font color='green'> ЗАШЛИ В ЗОНУ ТРЕЛЛИНГА</font><br>";
 
@@ -808,7 +805,7 @@ class BsController extends AppController {
 
             }
 
-            if ($delta > $this->step/$this->deltacoef) return true;
+            if ($delta > $this->step) return true;
 
 
 
@@ -857,41 +854,44 @@ class BsController extends AppController {
     private function CheckGlobalSCORING()
     {
 
-
-       // return true;
-
-
         $otklonenie = 0;
-        $pricenow = $this->GetPriceSide($this->symbol, "long");
+        $pricenow = $this->GetPriceSide($this->symbol, $this->workside);
 
         $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 9);
         $MaVAL = GetMA($this->KLINES30M);
         //  show($MaVAL);
 
 
-        $this->KLINES15M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 15);
-        $RSI =  GetRSI($this->KLINES15M);
-        // show($RSI);
-
-
-
         $otklonenie = $pricenow - $MaVAL;
         if ($pricenow < $MaVAL) $otklonenie = $MaVAL - $pricenow;
 
-        show($MaVAL);
-        show($otklonenie);
-        show($RSI);
+        $dopuskotkloneniya =  $this->maDev*$this->step;
 
-        if ($otklonenie > $this->maDev*$this->step) return false;
+        echo "Значение MA:".$MaVAL."<br>";
+        echo "Текущая цена:".$pricenow."<br>";
+        echo "Допуск отклонения:".$dopuskotkloneniya."<br>";
 
-        if ($RSI > $this->maxRSI) return false;
-        if ($RSI < $this->minRSI) return false;
-
-        if ($RSI > 50 && $this->workside == "long") return true;
-        if ($RSI < 50 && $this->workside == "short") return true;
+        echo "Отклонение текущее:".$otklonenie."<br>";
 
 
-        return true;
+        if ($otklonenie > $dopuskotkloneniya) return false;
+
+
+        if ($MaVAL > $pricenow)
+        {
+            echo "Текущая Цена  НИЖЕ значения МА<br>";
+            if ($this->workside == "long") return true;
+        }
+
+
+        if ($MaVAL < $pricenow)
+        {
+            echo "Текущая Цена  ВЫШЕ значения МА<br>";
+            if ($this->workside == "short") return true;
+        }
+
+
+        return false;
     }
 
     private function CloseCycle($TREK, $typclose =""){
