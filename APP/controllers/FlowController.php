@@ -28,21 +28,19 @@ class FlowController extends AppController {
     private $trellingBEGIN = 50; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
+    private $DeltaMA = 50;
 
     private $stoploss = 40; // Размер шага между ордерами
 
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
-    private $WORKTREKS = [];
     private $ORDERBOOK = [];
     private $EXCHANGECCXT = [];
     private $BALANCE = [];
     private $KLINES15M = [];
     private $KLINES30M = [];
     private $SCORING = [];
-    private $esymbol = "";
-    private $MASSORDERS = [];
 
 
 
@@ -140,11 +138,15 @@ class FlowController extends AppController {
 
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
+
           // Если потоки есть. Дальше работаем с ними
         if (empty($FLOWS)) {
-            echo "Потока нет. Создаем первый<br>";
-            $PARAMS = [];
-            $this->AddFlow($SCRIPT, $PARAMS);
+            echo "Потоков вообще нет. Нужно создать первый<br>";
+            
+            $SCORING = $this->CheckSCORING();
+
+            if ($SCORING == true) $this->AddFlow($SCRIPT);
+
             return true;
         }
 
@@ -154,11 +156,6 @@ class FlowController extends AppController {
         foreach ($FLOWS as $key => $FLOW) {
             echo "КОНТРОЛЬ ПОТОКА  ".$FLOW['id']."<br>";
         }
-
-
-
-
-
 
 
             echo "<hr>";
@@ -192,7 +189,6 @@ class FlowController extends AppController {
 
         return true;
     }
-
 
 
     private function WorkStatus1($FLOW, $AllOrdersREST)
@@ -257,7 +253,6 @@ class FlowController extends AppController {
 
         return true;
     }
-
     private function WorkStatus2($FLOW, $AllOrdersREST)
     {
 
@@ -367,10 +362,6 @@ class FlowController extends AppController {
 
         return true;
     }
-
-
-
-
     private function WorkStatus3($FLOW, $AllOrdersREST)
     {
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-3 </h3>";
@@ -473,6 +464,31 @@ class FlowController extends AppController {
 
 
         return true;
+
+    }
+
+
+    private function CheckSCORING()
+    {
+
+        echo "<b><font color='#faebd7'>Проводим скоринг...</font></b>";
+
+        $otklonenie = 0;
+        $pricenow = $this->GetPriceSide($this->symbol, "long");
+
+        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 9);
+        $MaVAL = GetMA($this->KLINES30M);
+        //  show($MaVAL);
+
+
+        $otklonenie = $pricenow - $MaVAL;
+        if ($pricenow < $MaVAL) $otklonenie = $MaVAL - $pricenow;
+
+        echo "Отклонение по МА: ".$otklonenie."<br>";
+
+        if ($otklonenie < $this->DeltaMA) return true;
+
+        return false;
 
     }
 
@@ -619,7 +635,7 @@ class FlowController extends AppController {
     }
 
 
-    private function AddFlow($SCRIPT, $PARAMS)
+    private function AddFlow($SCRIPT, $PARAMS = [])
     {
 
         echo "Добавляем поток! <br>";
