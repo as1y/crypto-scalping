@@ -394,6 +394,7 @@ class FlowController extends AppController {
             echo "Направление треллинга: ".$NapravlenieFIX."<br>";
             echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
 
+            $TRALLINGSTATUS = false;
             // Проверяем в треллинге мы или нет
             if ($globaldelta > $this->trellingBEGIN)
             {
