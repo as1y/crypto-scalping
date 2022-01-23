@@ -332,7 +332,6 @@ class FlowController extends AppController {
 
             if ($globaldelta > $this->trellingBEGIN) $Napravlenie = "long";
             if ($globaldelta*(-1) > $this->trellingBEGIN) $Napravlenie = "short";
-
             echo "Направление треллинга: ".$Napravlenie."<br>";
 
             // Проверяем в треллинге мы или нет
@@ -363,6 +362,23 @@ class FlowController extends AppController {
         {
 
             echo "Выставляем ордера ЛИМИТНЫЕ НА ТРЕЛЛИНГ <br>";
+
+            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlenie']);
+
+            if ($FLOW['limitid'] == NULL){
+
+                echo "<font color='#8b0000'> Выставляем ЛИМИТНИК на ТРЕЛЛИНГ </font><br>";
+
+                $order = $this->CreateFirstOrder($FLOW, $pricenow, true);
+                show($order);
+
+                $ARRCHANGE = [];
+                $ARRCHANGE['limitid'] = $order['id'];
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+                return true;
+
+            }
 
 
 
@@ -535,21 +551,32 @@ class FlowController extends AppController {
         return $price;
     }
 
-    private function CreateFirstOrder($FLOW, $pricenow){
-
-
-        $sideorder = $this->GetTextSide($FLOW['pointer']);
-        show($sideorder);
+    private function CreateFirstOrder($FLOW, $pricenow, $reduceonly = false){
 
         $params = [
             'time_in_force' => "PostOnly",
-            'reduce_only' => false,
+            'reduce_only' => $reduceonly,
         ];
 
+        if ($reduceonly == false)
+        {
+            $sideorder = $FLOW['pointer'];
+            if ($sideorder == "long") $price = $pricenow - $this->Basestep;
+            if ($sideorder == "short") $price = $pricenow;
+        }
+
+        if ($reduceonly == true)
+        {
+            $sideorder = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
+
+            if ($sideorder == "long") $price = $pricenow - $this->Basestep;
+            if ($sideorder == "short") $price = $pricenow + $this->Basestep;
+        }
 
 
-        if ($FLOW['pointer'] == "long") $price = $pricenow - $this->Basestep;
-        if ($FLOW['pointer'] == "short") $price = $pricenow;
+        $sideorder = $this->GetTextSide($sideorder);
+        show($sideorder);
+        show($price);
 
         $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$sideorder, $this->lot, $price, $params);
         return $order;
