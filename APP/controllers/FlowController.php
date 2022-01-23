@@ -296,6 +296,7 @@ class FlowController extends AppController {
         $ARRCHANGE['limitid'] = NULL;
         $ARRCHANGE['pricemarket'] = $pricenow;
         $ARRCHANGE['status'] = 2;
+        $ARRCHANGE['trallingstat'] = FALSE;
         //   $ARRCHANGE['lastprice'] = $order['last_exec_price'];
         $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
@@ -311,27 +312,50 @@ class FlowController extends AppController {
     private function WorkStatus2($FLOW)
     {
 
-        echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3> <br>";
+        echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3>";
 
-        // Определение КОНТР тренда по которму будем РАБОТАТЬ
-        $contrTREND = ($FLOW['pointer'] == 'long') ? 'short' : 'long';
+        // Заходим в зону треллинга и треллим
+        if ($FLOW['trallingstat'] == FALSE)
+        {
 
-        $pricenow = $this->GetPriceSide($this->symbol, $contrTREND);
+            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
+            $priceENTER = ($FLOW['pricelimit'] + $FLOW['pricemarket'])/2;
+            $priceENTER = round($priceENTER);
 
-        $priceENTER = ($FLOW['pricelimit'] + $FLOW['pricemarket'])/2;
-        $priceENTER = round($priceENTER);
-
-        echo "<b>Текущая цена по указателю:</b> ".$pricenow."<br>";
-        echo "<b>Средняя цена входа в поток:</b> ".$priceENTER."<br>";
-
-
-        echo "Работаем с треллингом по контр тренду: ".$contrTREND."<br>";
-
-        // Проверяем в треллинге мы или нет
-        $this->TrallingControl($FLOW, $contrTREND,$priceENTER, $pricenow);
+            echo "<b>Текущая цена по указателю:</b> ".$pricenow."<br>";
+            echo "<b>Средняя цена входа в поток:</b> ".$priceENTER."<br>";
 
 
+            $Napravlenie = NULL;
+            $globaldelta = $pricenow - $priceENTER;
+            echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
 
+            if ($globaldelta > $this->trellingBEGIN) $Napravlenie = "long";
+            if ($globaldelta*(-1) > $this->trellingBEGIN) $Napravlenie = "short";
+
+            echo "Направление треллинга: ".$Napravlenie."<br>";
+
+            // Проверяем в треллинге мы или нет
+            $TRALLINGSTATUS = $this->TrallingControl($FLOW, $Napravlenie, $pricenow);
+
+            echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
+            var_dump($TRALLINGSTATUS);
+
+            // Записываем в БД, что мы треллим этот поток
+
+
+        }
+
+
+        // Если наш статус уже определен. Выставляем ордера
+        if ($FLOW['trallingstat'] == TRUE)
+        {
+
+            echo "Выставляем ордера <br>";
+
+
+
+        }
 
 
         return true;
@@ -339,41 +363,63 @@ class FlowController extends AppController {
 
 
 
-    private function TrallingControl($FLOW, $contrTREND, $priceENTER, $pricenow){
+    private function TrallingControl($FLOW, $Napravlenie, $pricenow){
+
+        if ($Napravlenie == NULL) return false;
 
         $delta = 0;
 
-        if ($contrTREND == "short")
+        if ($Napravlenie == "short")
         {
-            $zone = $priceENTER - $pricenow;
-            echo "Отклонения от точки входа".$zone."<br>";
 
-            if ($zone > $this->trellingBEGIN)
+            echo "<font color='green'> РАБОТАЕМ В ЗОНЕ ТРЕЛЛИНГА</font><br>";
+
+            // Перезаписываем максцену в треллинге
+            if ($pricenow < $FLOW['maxprice'] || $FLOW['maxprice'] == 0 )
             {
-                echo "<font color='green'> ЗАШЛИ В ЗОНУ ТРЕЛЛИНГА</font><br>";
-
-                // Перезаписываем максцену в треллинге
-                if ($pricenow < $FLOW['maxprice'] || $FLOW['maxprice'] == 0 )
-                {
-                    echo "Перезаписываем MAXPRICE<br> ";
-                    $ARRCHANGE['maxprice'] = $pricenow;
-                    $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-                    $FLOW['maxprice'] = $pricenow;
-                }
-
-                // Отклонение от максимальной цены
-                $delta = $pricenow - $FLOW['maxprice'];
-                echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
-                echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
-
+                echo "Перезаписываем MAXPRICE<br> ";
+                $ARRCHANGE['maxprice'] = $pricenow;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+                $FLOW['maxprice'] = $pricenow;
             }
 
+            // Отклонение от максимальной цены
+            $delta = $pricenow - $FLOW['maxprice'];
+            echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
+            echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
+
+            if ($delta > $this->trellingSTEP) return true;
+
+        }
+
+
+        if ($Napravlenie == "long")
+        {
+
+            echo "<font color='green'> РАБОТАЕМ В ЗОНЕ ТРЕЛЛИНГА</font><br>";
+
+            // Перезаписываем максцену в треллинге
+            if ($pricenow > $FLOW['maxprice'] )
+            {
+                echo "Перезаписываем MAXPRICE<br> ";
+                $ARRCHANGE['maxprice'] = $pricenow;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+                $FLOW['maxprice'] = $pricenow;
+            }
+
+            // Отклонение от максимальной цены
+            $delta = $FLOW['maxprice'] -$pricenow;
+            echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
+            echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
+
+            if ($delta > $this->trellingSTEP) return true;
 
         }
 
 
 
 
+        return false;
 
     }
 
