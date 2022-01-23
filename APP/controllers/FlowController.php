@@ -332,6 +332,7 @@ class FlowController extends AppController {
 
             // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
             if ($this->OrderControl($OrderREST) === FALSE){
+                $FLOW['pointer'] = $FLOW['napravlenie'];
                 $this->LimitFalse($FLOW, $OrderREST, $pricenow);
                 return true;
             }
@@ -441,6 +442,7 @@ class FlowController extends AppController {
 
             // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
             if ($this->OrderControl($OrderREST) === FALSE){
+                $FLOW['pointer'] = $NapravlenieFIX;
                 $this->LimitFalse($FLOW, $OrderREST, $pricenow);
                 return true;
             }
@@ -591,7 +593,7 @@ class FlowController extends AppController {
 
 
         // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
-        if ($FLOW['pointer'] == "long" && ($pricenow) > $FLOW['pricelimit'])
+        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
         {
 
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
@@ -609,6 +611,8 @@ class FlowController extends AppController {
         }
 
         if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep) < $FLOW['pricelimit'])
+
+       //        if ($FLOW['pointer'] == "short" && ($pricenow) < $FLOW['pricelimit'])
         {
 
             echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
