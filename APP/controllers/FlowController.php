@@ -44,8 +44,6 @@ class FlowController extends AppController {
 
 
 
-
-
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
     public function indexAction()
     {
@@ -131,7 +129,6 @@ class FlowController extends AppController {
     }
 
 
-
     public function FlowControl($SCRIPT)
     {
             echo "<h2> Контроль потоков </h2> <br>";
@@ -164,7 +161,6 @@ class FlowController extends AppController {
     }
 
 
-
     public function FlowWork($SCRIPT)
     {
 
@@ -184,7 +180,7 @@ class FlowController extends AppController {
 
         foreach ($FLOWS as $key => $FLOW) {
 
-            echo "<b> ОБРАБОТКА ПОТОКА СО ID  ".$FLOW['id']." </b> <br>";
+            echo "<b> ОБРАБОТКА ПОТОКА ID  ".$FLOW['id']." </b> <br>";
 
             $f = 'WorkStatus' . $FLOW['status'];
             $this->$f($FLOW, $AllOrdersREST);
@@ -355,8 +351,6 @@ class FlowController extends AppController {
 
                 $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
-          //      $this->AddTracDealTradeBD($TREK, $OrderREST['price'] , $OrderREST['side'],"out");
-          //      $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
 
 
             }
@@ -401,10 +395,8 @@ class FlowController extends AppController {
                 $TRALLINGSTATUS = $this->TrallingControl($FLOW, $NapravlenieFIX, $pricenow);
             }
 
-
             echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
             var_dump($TRALLINGSTATUS);
-
 
             if ($TRALLINGSTATUS == true)
             {
@@ -461,6 +453,11 @@ class FlowController extends AppController {
 
                 // ЗАПИСЬ СТАТИСТИКИ. ЛОГИРОВАНИЕ ЗАХОДОВ
 
+                exit("111111");
+
+                $this->AddFlowHistoryBD($FLOW, $OrderREST); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
+
+
 
                 R::trash($FLOW);
 
@@ -501,6 +498,75 @@ class FlowController extends AppController {
     }
 
 
+    private function AddFlowHistoryBD($FLOW, $OrderREST, $STOP = false)
+    {
+        $dollar = 0;
+
+        $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
+        // Цена захода
+
+        if ($NapravlenieFIX == "long")
+        {
+            $enter = $OrderBD['lastprice'];
+            $pexit = $OrderREST['price'];
+
+            if ($STOP == false) $delta = changemet($enter, $pexit);
+//            if ($STOP == true)
+//            {
+//                $pexit = $OrderREST['last_exec_price'];
+//                $delta = changemet($enter, $pexit) - 0.05;
+//            }
+
+
+            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
+        }
+
+        if ($OrderBD['workside'] == "short")
+        {
+            $enter = $OrderBD['lastprice'];
+            $pexit = $OrderREST['price'];
+
+            if ($STOP == false) $delta = changemet($pexit, $enter ) + 0.05;
+            if ($STOP == true) {
+                $pexit = $OrderREST['last_exec_price'];
+                $delta = changemet($pexit, $enter) - 0.05;
+            }
+
+
+            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
+        }
+
+        $ACTBAL = $this->GetBal()['USDT']['total'];
+
+        $MASS = [
+            'trekid' => $TREK['id'],
+            'side' => $this->workside,
+            'dateex' => date("d-m-Y"),
+            'timeexit' => date("H:i:s"),
+            'enter' => $OrderBD['price'],
+            'exit' => $pexit,
+            'amount' => $OrderREST['qty'],
+            'dollar' => $dollar,
+            'delta' => $delta,
+            'bal' => $ACTBAL,
+        ];
+        //ДОБАВЛЯЕМ В ТАБЛИЦУ
+        $tbl3 = R::dispense("trekhistory");
+        //ДОБАВЛЯЕМ В ТАБЛИЦУ
+
+        //ДОБАВЛЯЕМ В ТАБЛИЦУ
+        foreach ($MASS as $name => $value) {
+            $tbl3->$name = $value;
+        }
+        R::store($tbl3);
+
+        echo "Сохранили запись о сделке в БД <br>";
+
+
+        return true;
+
+    }
+
 
 
     private function LimitFalse($FLOW, $OrderREST, $pricenow)
@@ -525,7 +591,7 @@ class FlowController extends AppController {
 
 
         // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
-        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
+        if ($FLOW['pointer'] == "long" && ($pricenow) > $FLOW['pricelimit'])
         {
 
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
