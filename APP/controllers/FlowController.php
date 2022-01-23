@@ -341,6 +341,17 @@ class FlowController extends AppController {
             echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
             var_dump($TRALLINGSTATUS);
 
+
+            if ($TRALLINGSTATUS == true)
+            {
+                $ARRCHANGE = [];
+                $ARRCHANGE['napravlenie'] = $Napravlenie;
+                $ARRCHANGE['trallingstat'] = TRUE;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            }
+
+
             // Записываем в БД, что мы треллим этот поток
 
 
@@ -351,7 +362,12 @@ class FlowController extends AppController {
         if ($FLOW['trallingstat'] == TRUE)
         {
 
-            echo "Выставляем ордера <br>";
+            echo "Выставляем ордера ЛИМИТНЫЕ НА ТРЕЛЛИНГ <br>";
+
+
+
+
+
 
 
 
