@@ -106,10 +106,14 @@ class FlowController extends AppController {
 
        // show($SCRIPT);
 
+        if ($SCRIPT['work'] == 1) {
+            echo "Скрипт в работе. Пропускаем цикл<br>";
+            return true;
+        }
+
+
         // Старт скрипта
         $this->StartScript($SCRIPT);
-
-
 
 
         // КОНТРОЛЬ РАБОТЫ ПОТОКОВ. БАЛАНСИРОВКА
@@ -120,12 +124,11 @@ class FlowController extends AppController {
         $this->FlowWork($SCRIPT);
 
 
-
-
-
         // Завершение скрипта
         $this->StopScript($SCRIPT);
         $this->LogZapuskov($SCRIPT);
+
+
 
     }
 
@@ -402,7 +405,7 @@ class FlowController extends AppController {
                 $TRALLINGSTATUS = $this->TrallingControl($FLOW, $NapravlenieFIX, $pricenow);
             }
 
-            
+
             echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
             var_dump($TRALLINGSTATUS);
 
