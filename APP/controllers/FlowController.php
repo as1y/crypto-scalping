@@ -224,62 +224,8 @@ class FlowController extends AppController {
 
         // КОНТРОЛИРУЕМ ОТКУП ЛИМИТНИКА
         if ($this->OrderControl($OrderREST) === FALSE){
-
-            // ВНЕЗАПНАЯ ПОПАДАНИЕ В СТАТУС "CANCELED"
-            if ($OrderREST['order_status'] == "Cancelled"){
-                echo "<font color='#8b0000'>ОРДЕР отменен (canceled)!!! </font> <br>";
-                echo "Отменяем его выставление!  <br>";
-                $ARRCHANGE = [];
-                $ARRCHANGE['limitid'] = NULL;
-                $ARRCHANGE['pricelimit'] = NULL;
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-                return true;
-            }
-
-
-            echo "Текущая цена:".$pricenow."<br>";
-            echo "Ордер выставлен по цене:".$FLOW['pricelimit']."<br>";
-
-
-            // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
-            if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
-            {
-
-                echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
-                // Отменяем текущий ордер
-                $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-                show($cancel);
-
-                $ARRCHANGE = [];
-                $ARRCHANGE['limitid'] = NULL;
-                $ARRCHANGE['pricelimit'] = NULL;
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-                return true;
-
-            }
-
-            if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep) < $FLOW['pricelimit'])
-            {
-
-                echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
-                // Отменяем текущий ордер
-                $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-                show($cancel);
-
-                $ARRCHANGE = [];
-                $ARRCHANGE['limitid'] = NULL;
-                $ARRCHANGE['pricelimit'] = NULL;
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-                return true;
-
-            }
-
-
+            $this->LimitFalse($FLOW, $OrderREST, $pricenow);
             return true;
-
         }
 
         echo "<font color='green'>Ордер исполнен</font><br>";
@@ -309,7 +255,7 @@ class FlowController extends AppController {
         return true;
     }
 
-    private function WorkStatus2($FLOW)
+    private function WorkStatus2($FLOW, $AllOrdersREST)
     {
 
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3>";
@@ -333,6 +279,8 @@ class FlowController extends AppController {
             if ($globaldelta > $this->trellingBEGIN) $Napravlenie = "long";
             if ($globaldelta*(-1) > $this->trellingBEGIN) $Napravlenie = "short";
             echo "Направление треллинга: ".$Napravlenie."<br>";
+
+            $pricenow = $this->GetPriceSide($this->symbol, $Napravlenie);
 
             // Проверяем в треллинге мы или нет
             $TRALLINGSTATUS = $this->TrallingControl($FLOW, $Napravlenie, $pricenow);
@@ -361,7 +309,6 @@ class FlowController extends AppController {
         if ($FLOW['trallingstat'] == TRUE)
         {
 
-            echo "Выставляем ордера ЛИМИТНЫЕ НА ТРЕЛЛИНГ <br>";
 
             $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlenie']);
 
@@ -380,17 +327,213 @@ class FlowController extends AppController {
 
             }
 
+            $OrderREST = $this->GetOneOrderREST($FLOW['limitid'], $AllOrdersREST);
+            echo "<b>REST LIMIT ORDER: </b> <br>";
+            show($OrderREST);
+
+            // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
+            if ($this->OrderControl($OrderREST) === FALSE){
+                $this->LimitFalse($FLOW, $OrderREST, $pricenow);
+                return true;
+            }
 
 
+            if ($OrderREST['order_status'] == "Filled")
+            {
+
+                echo "<b><font color='green'>ТРЕЛЛИНГ ПРОШЕЛ УСПЕШНО:</font></b> <br>";
+
+                $ARRCHANGE = [];
+                $ARRCHANGE['status'] = 3;
+                $ARRCHANGE['limitid'] = NULL;
+                $ARRCHANGE['trallingstat'] = FALSE;
+                $ARRCHANGE['maxprice'] = 0;
+                $ARRCHANGE['fixstep1'] = $OrderREST['price'];
+
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+          //      $this->AddTracDealTradeBD($TREK, $OrderREST['price'] , $OrderREST['side'],"out");
+          //      $this->AddTrackHistoryBD($TREK, $OrderBD, $OrderREST); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
 
 
-
+            }
 
 
         }
 
 
         return true;
+    }
+
+
+
+
+    private function WorkStatus3($FLOW, $AllOrdersREST)
+    {
+        echo "<h3> РАБОТА ПОТОКА. СТАТУС-3 </h3>";
+
+        show($FLOW);
+
+        // КОНТРОЛЬ НА СТОП-ЛОСС
+
+
+        if ($FLOW['trallingstat'] == FALSE)
+        {
+
+            // Определение направления
+            $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
+            show($NapravlenieFIX);
+
+            $pricenow = $this->GetPriceSide($this->symbol, $NapravlenieFIX);
+
+            echo "<b>Текущая цена:</b> ".$pricenow."<br>";
+            echo "<b>Точка от которой будем треллить:</b> ".$FLOW['fixstep1']."<br>";
+
+            $globaldelta = 0;
+            if ($NapravlenieFIX == "long")  $globaldelta = $pricenow - $FLOW['fixstep1'];
+            if ($NapravlenieFIX == "short")  $globaldelta = $FLOW['fixstep1'] - $pricenow;
+
+            echo "Направление треллинга: ".$NapravlenieFIX."<br>";
+            echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
+
+            // Проверяем в треллинге мы или нет
+            if ($globaldelta > $this->trellingBEGIN)
+            {
+                $TRALLINGSTATUS = $this->TrallingControl($FLOW, $NapravlenieFIX, $pricenow);
+            }
+
+            
+            echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
+            var_dump($TRALLINGSTATUS);
+
+
+            if ($TRALLINGSTATUS == true)
+            {
+                $ARRCHANGE = [];
+                $ARRCHANGE['trallingstat'] = TRUE;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            }
+
+
+            // Записываем в БД, что мы треллим этот поток
+
+
+        }
+
+        // Если наш статус уже определен. Выставляем ордера
+        if ($FLOW['trallingstat'] == TRUE)
+        {
+
+            $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
+
+            $pricenow = $this->GetPriceSide($this->symbol, $NapravlenieFIX);
+
+            if ($FLOW['limitid'] == NULL){
+
+                echo "<font color='#8b0000'> Выставляем ЛИМИТНИК на ТРЕЛЛИНГ </font><br>";
+                $FLOW['napravlenie'] = $NapravlenieFIX;
+                $order = $this->CreateFirstOrder($FLOW, $pricenow, true);
+                show($order);
+
+                $ARRCHANGE = [];
+                $ARRCHANGE['limitid'] = $order['id'];
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+                return true;
+
+            }
+
+            $OrderREST = $this->GetOneOrderREST($FLOW['limitid'], $AllOrdersREST);
+            echo "<b>REST LIMIT ORDER: </b> <br>";
+            show($OrderREST);
+
+            // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
+            if ($this->OrderControl($OrderREST) === FALSE){
+                $this->LimitFalse($FLOW, $OrderREST, $pricenow);
+                return true;
+            }
+
+
+            if ($OrderREST['order_status'] == "Filled")
+            {
+
+                echo "<b><font color='green'>РАБОТА ПОТОКА ЗАВЕРШЕНА!!!!!!</font></b> <br>";
+
+
+
+
+            }
+
+
+        }
+
+
+        return true;
+
+    }
+
+
+
+
+    private function LimitFalse($FLOW, $OrderREST, $pricenow)
+    {
+
+
+        // ВНЕЗАПНАЯ ПОПАДАНИЕ В СТАТУС "CANCELED"
+        if ($OrderREST['order_status'] == "Cancelled"){
+            echo "<font color='#8b0000'>ОРДЕР отменен (canceled)!!! </font> <br>";
+            echo "Отменяем его выставление!  <br>";
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = NULL;
+            $ARRCHANGE['pricelimit'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            return true;
+        }
+
+
+        echo "Текущая цена:".$pricenow."<br>";
+        echo "Ордер выставлен по цене:".$FLOW['pricelimit']."<br>";
+
+
+        // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
+        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
+        {
+
+            echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+            // Отменяем текущий ордер
+            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+            show($cancel);
+
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = NULL;
+            $ARRCHANGE['pricelimit'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            return true;
+
+        }
+
+        if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep) < $FLOW['pricelimit'])
+        {
+
+            echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+            // Отменяем текущий ордер
+            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+            show($cancel);
+
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = NULL;
+            $ARRCHANGE['pricelimit'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            return true;
+
+        }
+
+        return true;
+
     }
 
 
@@ -570,7 +713,7 @@ class FlowController extends AppController {
             $sideorder = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
 
             if ($sideorder == "long") $price = $pricenow - $this->Basestep;
-            if ($sideorder == "short") $price = $pricenow + $this->Basestep;
+            if ($sideorder == "short") $price = $pricenow ;
         }
 
 
