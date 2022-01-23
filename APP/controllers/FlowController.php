@@ -25,10 +25,10 @@ class FlowController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
     private $lot = 0.001; // Базовый заход
-    private $trellingBEGIN = 50; // Через сколько пунктов начинается треллинг
+    private $trellingBEGIN = 30; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 50;
+    private $DeltaMA = 400;
 
     private $stoploss = 40; // Размер шага между ордерами
 
@@ -106,9 +106,9 @@ class FlowController extends AppController {
 
         if ($SCRIPT['work'] == 1) {
             echo "Скрипт в работе. Пропускаем цикл<br>";
+            $this->StopScript($SCRIPT);
             return true;
         }
-
 
         // Старт скрипта
         $this->StartScript($SCRIPT);
@@ -142,7 +142,7 @@ class FlowController extends AppController {
           // Если потоки есть. Дальше работаем с ними
         if (empty($FLOWS)) {
             echo "Потоков вообще нет. Нужно создать первый<br>";
-            
+
             $SCORING = $this->CheckSCORING();
 
             if ($SCORING == true) $this->AddFlow($SCRIPT);
@@ -169,12 +169,16 @@ class FlowController extends AppController {
     {
 
 
+        /*
         $AllOrdersREST = $this->GetAllOrdersREST();
         // Проверка ордеров на наличие в БД КОСТЫЛЬ
         if ($AllOrdersREST === FALSE){
             echo  "Выдался пустой REST<br>";
             return false;
         }
+        */
+
+        $AllOrdersREST = [];
 
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
@@ -253,6 +257,7 @@ class FlowController extends AppController {
 
         return true;
     }
+
     private function WorkStatus2($FLOW, $AllOrdersREST)
     {
 
@@ -362,11 +367,10 @@ class FlowController extends AppController {
 
         return true;
     }
+
     private function WorkStatus3($FLOW, $AllOrdersREST)
     {
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-3 </h3>";
-
-        show($FLOW);
 
         // КОНТРОЛЬ НА СТОП-ЛОСС
 
@@ -454,7 +458,10 @@ class FlowController extends AppController {
 
                 echo "<b><font color='green'>РАБОТА ПОТОКА ЗАВЕРШЕНА!!!!!!</font></b> <br>";
 
+                // ЗАПИСЬ СТАТИСТИКИ. ЛОГИРОВАНИЕ ЗАХОДОВ
 
+
+                R::trash($FLOW);
 
 
             }
@@ -471,7 +478,7 @@ class FlowController extends AppController {
     private function CheckSCORING()
     {
 
-        echo "<b><font color='#faebd7'>Проводим скоринг...</font></b>";
+        echo "<b><font color='#663399'>Проводим скоринг...</font></b><br>";
 
         $otklonenie = 0;
         $pricenow = $this->GetPriceSide($this->symbol, "long");
@@ -657,8 +664,79 @@ class FlowController extends AppController {
 
 
     private function GetAllOrdersREST(){
-        $RESULT = $this->EXCHANGECCXT->fetch_orders($this->symbol, null, 100);
+
+        $url = "https://api.bybit.com/private/linear/order/list";
+        $symbol  = str_replace("/", "", $this->symbol);
+        $headers = [
+            'Content-Type' => 'application/json',
+        ];
+
+        // Загружаем PART1
+        $RESULTPart1 = [];
+        $params = [
+            'limit' => '50',
+            'order'=> 'desc',
+            'order_status' => '',
+            'timestamp' => time() * 1000,
+            'symbol' => $symbol,
+            'page' => 1,
+        ];
+
+        $qs = get_signed_params_bybit($this->ApiKey, $this->SecretKey, $params);
+        $url = $url."?".$qs;
+        $MASS = fCURL($url, null, $headers);
+        // Загружаем FILLED
+        $MASS = $MASS['result']['data'];
+        if (empty($MASS)) return FALSE;
+        foreach ($MASS as $key=>$val){
+            $RESULTPart1[$val['order_id']] = $val;
+            $RESULTPart1[$val['order_id']]['status'] = $val['order_status'];
+            $RESULTPart1[$val['order_id']]['amount'] = $val['qty'];
+            $RESULTPart1[$val['order_id']]['last'] = $val['last_exec_price'];
+
+        }
+        // Загружаем PART1
+
+
+        // Загружаем PART2
+        $RESULTPart2 = [];
+        $params = [
+            'limit' => '50',
+            'order'=> 'desc',
+            'order_status' => '',
+            'timestamp' => time() * 1000,
+            'symbol' => $symbol,
+            'page' => 2,
+        ];
+        $url = "https://api.bybit.com/private/linear/order/list";
+        $qs = get_signed_params_bybit($this->ApiKey, $this->SecretKey, $params);
+        $url = $url."?".$qs;
+
+        $MASS = fCURL($url, null, $headers);
+
+        $MASS = $MASS['result']['data'];
+        if (empty($MASS)) return FALSE;
+
+        foreach ($MASS as $key=>$val){
+            $RESULTPart2[$val['order_id']] = $val;
+            $RESULTPart2[$val['order_id']]['status'] = $val['order_status'];
+            $RESULTPart2[$val['order_id']]['amount'] = $val['qty'];
+            $RESULTPart2[$val['order_id']]['last'] = $val['last_exec_price'];
+        }
+        // Загружаем PART2
+
+
+
+
+        $RESULT = array_merge ($RESULTPart1, $RESULTPart2);
+
         return $RESULT;
+
+
+       // $RESULT = $this->EXCHANGECCXT->fetch_orders($this->symbol, null, 50);
+
+      //  return $RESULT;
+
     }
 
     public function OrderControl($order){
