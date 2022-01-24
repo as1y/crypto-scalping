@@ -25,12 +25,12 @@ class FlowController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
     private $lot = 0.001; // Базовый заход
-    private $trellingBEGIN = 30; // Через сколько пунктов начинается треллинг
+    private $trellingBEGIN = 50; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 400;
+    private $DeltaMA = 100; // Коридор захода в позицию
 
-    private $stoploss = 1500; // Размер шага между ордерами
+    private $stoploss = 1000; // Стоп лосс в пунктах актива
 
 
 
@@ -377,7 +377,7 @@ class FlowController extends AppController {
         // КОНТРОЛЬ НА СТОП-ЛОСС
 
         $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
-        
+
         // Выставление СТОП- ОРДЕРА
         if ($FLOW['stoporder'] == NULL){
             echo "Выставляем ПЕРВЫЙ СТОП ордер на ТЕЙК ПОЗИЦИИ!!<br><br>";
