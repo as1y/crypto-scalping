@@ -380,16 +380,32 @@ class FlowController extends AppController {
         show($NapravlenieFIX);
 
 
+        // Выставление СТОП- ОРДЕРА
         if ($FLOW['stoporder'] == NULL){
             echo "Выставляем ПЕРВЫЙ СТОП ордер на ТЕЙК ПОЗИЦИИ!!<br><br>";
             if ($NapravlenieFIX == "long") $StopPrice = $FLOW['fixstep1'] - $this->stoploss;
             if ($NapravlenieFIX == "short") $StopPrice = $FLOW['fixstep1'] + $this->stoploss;
-
             $this->CreateStop($FLOW, $NapravlenieFIX, $StopPrice);
-
             return true;
         }
 
+        // ПРОВЕРКА НА ИСПОЛНЕНОСТЬ СТОП ОРДЕРА
+        $OrderREST = $this->GetOneOrderREST($FLOW['stoporder'], $AllOrdersREST); // Ордер РЕСТ статус 2
+        echo "<b>REST STOP ORDER: </b> <br>";
+        // show($OrderREST);
+        if ($OrderREST['order_status'] == "Filled")
+        {
+            echo "<font color='#8b0000'>СТОП ОРДЕР ИСПОЛНИЛСЯ!!!</font> <br>";
+
+            //show($OrderREST);
+            $this->AddFlowHistoryBD($FLOW, $OrderREST, $STOP = true); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
+            R::trash($FLOW);
+
+
+        }
+
+
+        // МЕХАНИЗМ ТРЕЛЛИНГА!!!!!
 
 
         if ($FLOW['trallingstat'] == FALSE)
@@ -476,7 +492,6 @@ class FlowController extends AppController {
                 // ЗАПИСЬ СТАТИСТИКИ. ЛОГИРОВАНИЕ ЗАХОДОВ
 
                 $this->AddFlowHistoryBD($FLOW, $OrderREST); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
-
 
                 R::trash($FLOW);
 
@@ -605,13 +620,13 @@ class FlowController extends AppController {
 
         show($inverted_side);
 
-        $order = $this->EXCHANGECCXT->create_order($this->symbol,"market", $inverted_side, $FLOW['amount'], null, $params);
+        $order = $this->EXCHANGECCXT->create_order($this->symbol,"market", $inverted_side, $FLOW['lot'], null, $params);
 
 
         $ARRCHANGE = [];
         $ARRCHANGE['stoporder'] = $order['id'];
 
-        $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+        $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
 
 
@@ -888,7 +903,9 @@ class FlowController extends AppController {
         $order = $this->EXCHANGECCXT->fetch_order($id,$this->symbol)['info'];
         //    $order['status'] = $order['status'];
         $order['amount'] = $order['qty'];
+
         $order['price'] = $order['price'];
+
 
         // $MASS[$order['id']] = $order;
         return $order;
