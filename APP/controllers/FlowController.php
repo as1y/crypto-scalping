@@ -30,7 +30,7 @@ class FlowController extends AppController {
 
     private $DeltaMA = 400;
 
-    private $stoploss = 40; // Размер шага между ордерами
+    private $stoploss = 1500; // Размер шага между ордерами
 
 
 
@@ -150,9 +150,11 @@ class FlowController extends AppController {
 
         // ЗАПУСК РАБОЧИХ ПОТОКОВ
         echo "Контроль действующих потоков <br>";
-        foreach ($FLOWS as $key => $FLOW) {
-            echo "КОНТРОЛЬ ПОТОКА  ".$FLOW['id']."<br>";
-        }
+//        foreach ($FLOWS as $key => $FLOW) {
+//
+//            echo "КОНТРОЛЬ ПОТОКА  ".$FLOW['id']."<br>";
+//
+//        }
 
 
             echo "<hr>";
@@ -259,6 +261,12 @@ class FlowController extends AppController {
 
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3>";
 
+        // Выставление СТОПА
+
+        // Контроль его работы
+
+
+
         // Заходим в зону треллинга и треллим
         if ($FLOW['trallingstat'] == FALSE)
         {
@@ -302,7 +310,6 @@ class FlowController extends AppController {
 
 
         }
-
 
         // Если наш статус уже определен. Выставляем ордера
         if ($FLOW['trallingstat'] == TRUE)
@@ -369,13 +376,26 @@ class FlowController extends AppController {
 
         // КОНТРОЛЬ НА СТОП-ЛОСС
 
+        $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
+        show($NapravlenieFIX);
+
+
+        if ($FLOW['stoporder'] == NULL){
+            echo "Выставляем ПЕРВЫЙ СТОП ордер на ТЕЙК ПОЗИЦИИ!!<br><br>";
+            if ($NapravlenieFIX == "long") $StopPrice = $FLOW['fixstep1'] - $this->stoploss;
+            if ($NapravlenieFIX == "short") $StopPrice = $FLOW['fixstep1'] + $this->stoploss;
+
+            $this->CreateStop($FLOW, $NapravlenieFIX, $StopPrice);
+
+            return true;
+        }
+
+
 
         if ($FLOW['trallingstat'] == FALSE)
         {
 
             // Определение направления
-            $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
-            show($NapravlenieFIX);
 
             $pricenow = $this->GetPriceSide($this->symbol, $NapravlenieFIX);
 
@@ -455,10 +475,7 @@ class FlowController extends AppController {
 
                 // ЗАПИСЬ СТАТИСТИКИ. ЛОГИРОВАНИЕ ЗАХОДОВ
 
-                exit("111111");
-
                 $this->AddFlowHistoryBD($FLOW, $OrderREST); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
-
 
 
                 R::trash($FLOW);
@@ -509,23 +526,23 @@ class FlowController extends AppController {
 
         if ($NapravlenieFIX == "long")
         {
-            $enter = $OrderBD['lastprice'];
+            $enter = $FLOW['fixstep1'];
             $pexit = $OrderREST['price'];
 
             if ($STOP == false) $delta = changemet($enter, $pexit);
-//            if ($STOP == true)
-//            {
-//                $pexit = $OrderREST['last_exec_price'];
-//                $delta = changemet($enter, $pexit) - 0.05;
-//            }
+            if ($STOP == true)
+            {
+                $pexit = $OrderREST['last_exec_price'];
+                $delta = changemet($enter, $pexit) - 0.05;
+            }
 
 
-            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
+            $dollar = ($OrderREST['last_exec_price']/100)*$delta*$OrderREST['qty'];
         }
 
-        if ($OrderBD['workside'] == "short")
+        if ($NapravlenieFIX == "short")
         {
-            $enter = $OrderBD['lastprice'];
+            $enter = $FLOW['fixstep1'];
             $pexit = $OrderREST['price'];
 
             if ($STOP == false) $delta = changemet($pexit, $enter ) + 0.05;
@@ -535,17 +552,18 @@ class FlowController extends AppController {
             }
 
 
-            $dollar = ($OrderBD['lastprice']/100)*$delta*$OrderREST['qty'];
+            $dollar = ($OrderREST['last_exec_price']/100)*$delta*$OrderREST['qty'];
         }
 
         $ACTBAL = $this->GetBal()['USDT']['total'];
 
         $MASS = [
-            'trekid' => $TREK['id'],
-            'side' => $this->workside,
-            'dateex' => date("d-m-Y"),
+            'flowid' => $FLOW['id'],
+            'napravlenie1' => $FLOW['napravlenie'],
+            'napravlenie2' => $NapravlenieFIX,
+            'date' => date("d-m-Y"),
             'timeexit' => date("H:i:s"),
-            'enter' => $OrderBD['price'],
+            'enter' => $FLOW['fixstep1'],
             'exit' => $pexit,
             'amount' => $OrderREST['qty'],
             'dollar' => $dollar,
@@ -553,7 +571,7 @@ class FlowController extends AppController {
             'bal' => $ACTBAL,
         ];
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
-        $tbl3 = R::dispense("trekhistory");
+        $tbl3 = R::dispense("flowhistory");
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
 
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
@@ -563,6 +581,39 @@ class FlowController extends AppController {
         R::store($tbl3);
 
         echo "Сохранили запись о сделке в БД <br>";
+
+
+        return true;
+
+    }
+
+    private function CreateStop($FLOW, $NapravlenieFIX,  $StopPrice)
+    {
+
+
+        if ($NapravlenieFIX == "long") $bp = $FLOW['fixstep1'] + $this->stoploss*2;
+        if ($NapravlenieFIX == "short") $bp = $FLOW['fixstep1'] - $this->stoploss*2;
+
+        $params = [
+            'stop_px' => $StopPrice, // trigger $price, required for conditional orders
+            'base_price' => $bp,
+            'trigger_by' => 'LastPrice', // IndexPrice, MarkPrice
+            'reduce_only' => true,
+        ];
+
+        $inverted_side = ($NapravlenieFIX == 'Buy') ? 'Sell' : 'Buy';
+
+        show($inverted_side);
+
+        $order = $this->EXCHANGECCXT->create_order($this->symbol,"market", $inverted_side, $FLOW['amount'], null, $params);
+
+
+        $ARRCHANGE = [];
+        $ARRCHANGE['stoporder'] = $order['id'];
+
+        $this->ChangeARRinBD($ARRCHANGE, $OrderBD['id'], "orders");
+
+
 
 
         return true;
@@ -603,7 +654,6 @@ class FlowController extends AppController {
 
             $ARRCHANGE = [];
             $ARRCHANGE['limitid'] = NULL;
-            $ARRCHANGE['pricelimit'] = NULL;
             $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
             return true;
@@ -622,7 +672,6 @@ class FlowController extends AppController {
 
             $ARRCHANGE = [];
             $ARRCHANGE['limitid'] = NULL;
-            $ARRCHANGE['pricelimit'] = NULL;
             $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
             return true;
@@ -706,7 +755,7 @@ class FlowController extends AppController {
         $inverted_side = ($FLOW['pointer'] == 'long') ? 'Sell' : 'Buy';
         //show($inverted_side);
 
-        $order = $this->EXCHANGECCXT->create_order($this->symbol,"market",$inverted_side, $this->lot, null, $param);
+        $order = $this->EXCHANGECCXT->create_order($this->symbol,"market",$inverted_side, $FLOW['lot'], null, $param);
 
         return $order;
 
@@ -720,6 +769,7 @@ class FlowController extends AppController {
 
         $ARR['scriptid'] = $SCRIPT['id'];
         $ARR['status'] = 1;
+        $ARR['lot'] = $this->lot;
         $ARR['pointer'] = "long";
         $ARR['maxprice'] = 0;
         $ARR['stamp'] = time();
@@ -889,7 +939,7 @@ class FlowController extends AppController {
         show($sideorder);
         show($price);
 
-        $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$sideorder, $this->lot, $price, $params);
+        $order = $this->EXCHANGECCXT->create_order($this->symbol,"limit",$sideorder, $FLOW['lot'], $price, $params);
         return $order;
 
 
