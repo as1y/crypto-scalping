@@ -377,9 +377,7 @@ class FlowController extends AppController {
         // КОНТРОЛЬ НА СТОП-ЛОСС
 
         $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
-        show($NapravlenieFIX);
-
-
+        
         // Выставление СТОП- ОРДЕРА
         if ($FLOW['stoporder'] == NULL){
             echo "Выставляем ПЕРВЫЙ СТОП ордер на ТЕЙК ПОЗИЦИИ!!<br><br>";
@@ -389,20 +387,6 @@ class FlowController extends AppController {
             return true;
         }
 
-        // ПРОВЕРКА НА ИСПОЛНЕНОСТЬ СТОП ОРДЕРА
-        $OrderREST = $this->GetOneOrderREST($FLOW['stoporder'], $AllOrdersREST); // Ордер РЕСТ статус 2
-        echo "<b>REST STOP ORDER: </b> <br>";
-        // show($OrderREST);
-        if ($OrderREST['order_status'] == "Filled")
-        {
-            echo "<font color='#8b0000'>СТОП ОРДЕР ИСПОЛНИЛСЯ!!!</font> <br>";
-
-            //show($OrderREST);
-            $this->AddFlowHistoryBD($FLOW, $OrderREST, $STOP = true); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
-            R::trash($FLOW);
-
-
-        }
 
 
         // МЕХАНИЗМ ТРЕЛЛИНГА!!!!!
@@ -410,6 +394,21 @@ class FlowController extends AppController {
 
         if ($FLOW['trallingstat'] == FALSE)
         {
+
+            // ПРОВЕРКА НА ИСПОЛНЕНОСТЬ СТОП ОРДЕРА
+            $OrderREST = $this->GetOneOrderREST($FLOW['stoporder'], $AllOrdersREST); // Ордер РЕСТ статус 2
+            //echo "<b>REST STOP ORDER: </b> <br>";
+            // show($OrderREST);
+            if ($OrderREST['order_status'] == "Filled")
+            {
+                echo "<font color='#8b0000'>СТОП ОРДЕР ИСПОЛНИЛСЯ!!!</font> <br>";
+                //show($OrderREST);
+                $this->AddFlowHistoryBD($FLOW, $OrderREST, $STOP = true); // Исполнен статус 4 ВЫХОД ИЗ СДЕЛКИ
+                R::trash($FLOW);
+            }
+
+
+
 
             // Определение направления
 
