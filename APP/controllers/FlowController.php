@@ -25,10 +25,10 @@ class FlowController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
     private $lot = 0.001; // Базовый заход
-    private $trellingBEGIN = 50; // Через сколько пунктов начинается треллинг
+    private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 100; // Коридор захода в позицию
+    private $DeltaMA = 200; // Коридор захода в позицию
 
     private $stoploss = 1000; // Стоп лосс в пунктах актива
 
@@ -41,7 +41,6 @@ class FlowController extends AppController {
     private $KLINES15M = [];
     private $KLINES30M = [];
     private $SCORING = [];
-
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -282,12 +281,14 @@ class FlowController extends AppController {
             $Napravlenie = NULL;
             $globaldelta = $pricenow - $priceENTER;
             echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
+            $pricenow = $this->GetPriceSide($this->symbol, $Napravlenie); // Забираем корректную цену в зависимости от направления
+
 
             if ($globaldelta > $this->trellingBEGIN) $Napravlenie = "long";
             if ($globaldelta*(-1) > $this->trellingBEGIN) $Napravlenie = "short";
             echo "Направление треллинга: ".$Napravlenie."<br>";
 
-            $pricenow = $this->GetPriceSide($this->symbol, $Napravlenie);
+
 
             // Проверяем в треллинге мы или нет
             $TRALLINGSTATUS = $this->TrallingControl($FLOW, $Napravlenie, $pricenow);
@@ -436,6 +437,14 @@ class FlowController extends AppController {
 
             if ($TRALLINGSTATUS == true)
             {
+
+                $params = [
+                    'stop_order_id' => $FLOW['stoporder'],
+                ];
+                // Функция отмены стоп ордера
+                $this->EXCHANGECCXT->cancel_order($FLOW['stoporder'], $this->symbol,$params);
+
+
                 $ARRCHANGE = [];
                 $ARRCHANGE['trallingstat'] = TRUE;
                 $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");

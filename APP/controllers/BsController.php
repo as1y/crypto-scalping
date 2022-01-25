@@ -583,7 +583,7 @@ class BsController extends AppController {
                     'stop_order_id' => $OrderBD['trallingorderid'],
                 ];
                 // Функция отмены стоп ордера
-                $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol,$params) ;
+                $this->EXCHANGECCXT->cancel_order($OrderBD['trallingorderid'], $this->symbol,$params);
 
                 $ARRCHANGE = [];
                 $ARRCHANGE['status'] = 4;
