@@ -668,7 +668,7 @@ class FlowController extends AppController {
         show($FLOW['pointer']);
 
         // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
-        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
+        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep*2) > $FLOW['pricelimit'])
         {
 
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
