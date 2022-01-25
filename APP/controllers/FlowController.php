@@ -26,7 +26,7 @@ class FlowController extends AppController {
 
     private $lot = 0.001; // Базовый заход
     private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
-    private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
+    private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
     private $DeltaMA = 200; // Коридор захода в позицию
 
@@ -624,7 +624,7 @@ class FlowController extends AppController {
             'reduce_only' => true,
         ];
 
-        $inverted_side = ($NapravlenieFIX == 'Buy') ? 'Sell' : 'Buy';
+        $inverted_side = ($NapravlenieFIX == 'long') ? 'Sell' : 'Buy';
 
         show($inverted_side);
 
@@ -665,6 +665,7 @@ class FlowController extends AppController {
         echo "Текущая цена:".$pricenow."<br>";
         echo "Ордер выставлен по цене:".$FLOW['pricelimit']."<br>";
 
+        show($FLOW['pointer']);
 
         // ПРОВЕРКА ТЕКУЩЕЙ ЦЕНЫ ЛОНГ
         if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
@@ -683,9 +684,8 @@ class FlowController extends AppController {
 
         }
 
+        // Треллим вниз
         if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep) < $FLOW['pricelimit'])
-
-       //        if ($FLOW['pointer'] == "short" && ($pricenow) < $FLOW['pricelimit'])
         {
 
             echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
@@ -700,6 +700,35 @@ class FlowController extends AppController {
             return true;
 
         }
+
+        // В шорте цена ушла наверх
+        if ($FLOW['pointer'] == "short" && ($pricenow) > $FLOW['pricelimit'])
+        {
+            echo "По каким-то причинам ордер не откупился и ушел. Вверх! <br>";
+            echo "<font color='#8b0000'>Колебания цены. Перевыставляем ордер!!! </font> <br>";
+            // Отменяем текущий ордер
+            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+            show($cancel);
+
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+        }
+
+        // В лонге цена ушла вниз
+        if ($FLOW['pointer'] == "long" && ($pricenow) < $FLOW['pricelimit'])
+        {
+            echo "По каким-то причинам ордер не откупился и ушел. Вверх! <br>";
+            echo "<font color='#8b0000'>Колебания цены. Перевыставляем ордер!!! </font> <br>";
+            // Отменяем текущий ордер
+            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+            show($cancel);
+
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+        }
+
 
         return true;
 
