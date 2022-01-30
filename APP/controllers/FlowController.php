@@ -11,8 +11,8 @@ class FlowController extends AppController {
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
-    public $ApiKey = "9juzIdfqflVMeQtZf9";
-    public $SecretKey = "FwUD2Ux5sjLo8DyifqYr4cfWgxASblk7CZo7";
+    public $ApiKey = "TvLAD7I4Qz5cEBvaBh";
+    public $SecretKey = "2z3NSPXjryoUZQdz44xAf0THglGheTsarSmO";
 
 
     // Переменные для стратегии
@@ -754,8 +754,8 @@ class FlowController extends AppController {
             return true;
 
         }
-
-        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep*3) < $OrderREST['price'])
+ 
+        if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep*3) < $OrderREST['price'])
         {
             echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
