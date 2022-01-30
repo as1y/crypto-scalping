@@ -740,7 +740,8 @@ class FlowController extends AppController {
         echo "Ордер выставлен по цене:".$OrderREST['price']."<br>";
 
 
-        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep*3) > $OrderREST['price'])
+
+        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep*3) < $OrderREST['price'])
         {
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
@@ -754,9 +755,11 @@ class FlowController extends AppController {
             return true;
 
         }
- 
-        if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep*3) < $OrderREST['price'])
+
+        if ($FLOW['pointer'] == "short" && ($pricenow - $this->Basestep*3) > $OrderREST['price'])
         {
+
+
             echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
             $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
