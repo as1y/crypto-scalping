@@ -28,7 +28,7 @@ class FlowController extends AppController {
     private $trellingBEGIN = 30; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 50; // Коридор захода в позицию
+    private $DeltaMA = 200; // Коридор захода в позицию
 
     private $stoploss = 1000; // Стоп лосс в пунктах актива
     private $urovenbreakzone = 300; // в шагах
@@ -154,11 +154,17 @@ class FlowController extends AppController {
 
         // ЗАПУСК РАБОЧИХ ПОТОКОВ
         echo "Контроль действующих потоков <br>";
-//        foreach ($FLOWS as $key => $FLOW) {
-//
-//            echo "КОНТРОЛЬ ПОТОКА  ".$FLOW['id']."<br>";
-//
-//        }
+        // Определяем сколько потоков
+        $countflows = count($FLOWS);
+        $counbreak = 0;
+        foreach ($FLOWS as $key => $FLOW) {
+            echo "КОНТРОЛЬ ПОТОКА  ".$FLOW['id']."<br>";
+            if ($FLOW['breakzone'] == true) $counbreak = $counbreak +1;
+
+        }
+
+        echo "<b>Активных потоков: </b>".$countflows."<br>";
+        echo "<b>Кол-во зависших потоков: </b>".$counbreak."<br>";
 
 
             echo "<hr>";
@@ -430,10 +436,9 @@ class FlowController extends AppController {
 
             // ПРОВЕРКА НА БРЕКЗОНУ
 
-                echo "БрекЗона = ФАЛС<br>";
                 $functionzone = $this->CheckBreakZone($FLOW, $globaldelta);
 
-                echo "БрекЗона по функции:".$functionzone."<br>";
+                echo "<b>БрекЗона по функции:</b>".$functionzone."<br>";
 
 
                 // Смена БрекЗоны
@@ -852,6 +857,8 @@ class FlowController extends AppController {
         echo "<b><font color='green'>ДОБАВИЛИ ПОТОК</font></b>";
         // Добавление ТРЕКА в БД
 
+
+
         return true;
 
     }
@@ -961,8 +968,6 @@ class FlowController extends AppController {
         $order = $this->EXCHANGECCXT->fetch_order($id,$this->symbol)['info'];
         //    $order['status'] = $order['status'];
         $order['amount'] = $order['qty'];
-
-        $order['price'] = $order['price'];
 
 
         // $MASS[$order['id']] = $order;
