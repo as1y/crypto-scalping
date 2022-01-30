@@ -596,15 +596,25 @@ class FlowController extends AppController {
 
         // Получение всех потоков
         $FLOWS = $this->GetFlowBD($SCRIPT);
+        $countflows = count($FLOWS);
+        if ($countflows == 1)
+        {
+            if ($globaldelta >= $this->trellingBEGIN) return "long";
+            if ($globaldelta*(-1) > $this->trellingBEGIN) return "short";
+            return false;
 
-        if ($globaldelta >= $this->trellingBEGIN) return "long";
-        if ($globaldelta*(-1) > $this->trellingBEGIN) return "short";
+        }
 
 
-
+        // Направление последнего потока
+        $lastFLOW = R::findLast('table_name');
+        if ($lastFLOW['napravlenie'] == "short" &&  ($globaldelta >= $this->trellingBEGIN)) return "long";
+        if ($lastFLOW['napravlenie'] == "long" &&  ($globaldelta*(-1) > $this->trellingBEGIN)) return "short";
 
 
         return false;
+
+
     }
 
 
