@@ -35,7 +35,7 @@ class FlowController extends AppController {
 
 
 
-    private $timebreakzone = 60; // в минутах
+    private $timebreakzone = 120; // в минутах
     private $maxflow = 5;
 
 
@@ -145,7 +145,6 @@ class FlowController extends AppController {
             echo "Потоков вообще нет. Нужно создать первый<br>";
 
             $SCORING = $this->CheckSCORING();
-
             if ($SCORING == true) $this->AddFlow($SCRIPT);
 
             return true;
@@ -153,18 +152,32 @@ class FlowController extends AppController {
 
 
         // ЗАПУСК РАБОЧИХ ПОТОКОВ
-        echo "Контроль действующих потоков <br>";
+
         // Определяем сколько потоков
         $countflows = count($FLOWS);
         $counbreak = 0;
         foreach ($FLOWS as $key => $FLOW) {
-            echo "КОНТРОЛЬ ПОТОКА  ".$FLOW['id']."<br>";
+            echo "КОНТРОЛЬ ПОТОКА ID:  ".$FLOW['id']."<br><br>";
             if ($FLOW['breakzone'] == true) $counbreak = $counbreak +1;
 
         }
 
         echo "<b>Активных потоков: </b>".$countflows."<br>";
         echo "<b>Кол-во зависших потоков: </b>".$counbreak."<br>";
+
+
+        if ($countflows < $this->maxflow)
+        {
+                if ($countflows == $counbreak)
+                {
+                    echo "<font color='green'> Можем создать еще 1 поток!!! </font><br>";
+
+                    $SCORING = $this->CheckSCORING();
+                    if ($SCORING == true) $this->AddFlow($SCRIPT);
+                }
+
+        }
+
 
 
             echo "<hr>";
@@ -196,6 +209,7 @@ class FlowController extends AppController {
 
             $f = 'WorkStatus' . $FLOW['status'];
             $this->$f($FLOW, $AllOrdersREST);
+            echo "<hr>";
 
         }
 
@@ -438,7 +452,11 @@ class FlowController extends AppController {
 
                 $functionzone = $this->CheckBreakZone($FLOW, $globaldelta);
 
-                echo "<b>БрекЗона по функции:</b>".$functionzone."<br>";
+                if ($functionzone == false)
+                {
+                    echo "<b><font color='#8b0000'>БрекЗона по функции:</font></b>".$functionzone."<br>";
+                }
+
 
 
                 // Смена БрекЗоны
@@ -719,10 +737,10 @@ class FlowController extends AppController {
 
         echo "Направление ".$FLOW['pointer']."<br>";
         echo "Текущая цена: <b>".$pricenow."</b><br>";
-        echo "Ордер выставлен по цене:".$FLOW['pricelimit']."<br>";
+        echo "Ордер выставлен по цене:".$OrderREST['price']."<br>";
 
 
-        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
+        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep*3) > $OrderREST['price'])
         {
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
@@ -737,7 +755,7 @@ class FlowController extends AppController {
 
         }
 
-        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep) < $FLOW['pricelimit'])
+        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep*3) < $OrderREST['price'])
         {
             echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
