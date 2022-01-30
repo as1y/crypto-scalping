@@ -755,7 +755,6 @@ class FlowController extends AppController {
             return true;
 
         }
-
         if ($FLOW['pointer'] == "short" && ($pricenow - $this->Basestep*3) > $OrderREST['price'])
         {
 
@@ -772,7 +771,35 @@ class FlowController extends AppController {
             return true;
         }
 
+        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep*3) > $OrderREST['price'])
+        {
+            echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+            // Отменяем текущий ордер
+            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+            show($cancel);
 
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            return true;
+
+        }
+        if ($FLOW['pointer'] == "short" && ($pricenow - $this->Basestep*3) < $OrderREST['price'])
+        {
+
+
+            echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
+            // Отменяем текущий ордер
+            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+            show($cancel);
+
+            $ARRCHANGE = [];
+            $ARRCHANGE['limitid'] = NULL;
+            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+            return true;
+        }
 
 
 
