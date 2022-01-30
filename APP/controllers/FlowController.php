@@ -208,7 +208,7 @@ class FlowController extends AppController {
             echo "<b> ОБРАБОТКА ПОТОКА ID  ".$FLOW['id']." </b> <br>";
 
             $f = 'WorkStatus' . $FLOW['status'];
-            $this->$f($FLOW, $AllOrdersREST);
+            $this->$f($FLOW, $AllOrdersREST, $SCRIPT);
             echo "<hr>";
 
         }
@@ -217,7 +217,7 @@ class FlowController extends AppController {
     }
 
 
-    private function WorkStatus1($FLOW, $AllOrdersREST)
+    private function WorkStatus1($FLOW, $AllOrdersREST, $SCRIPT)
     {
 
 
@@ -280,7 +280,7 @@ class FlowController extends AppController {
         return true;
     }
 
-    private function WorkStatus2($FLOW, $AllOrdersREST)
+    private function WorkStatus2($FLOW, $AllOrdersREST, $SCRIPT)
     {
 
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3>";
@@ -293,8 +293,9 @@ class FlowController extends AppController {
         $globaldelta = $pricenow - $priceENTER;
         echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
 
-        if ($globaldelta >= $this->trellingBEGIN) $Napravlenie = "long";
-        if ($globaldelta*(-1) > $this->trellingBEGIN) $Napravlenie = "short";
+
+        $Napravlenie = $this->GetNapravlenie($globaldelta, $SCRIPT);
+
         echo "Направление треллинга: ".$Napravlenie."<br>";
 
 
@@ -390,7 +391,7 @@ class FlowController extends AppController {
         return true;
     }
 
-    private function WorkStatus3($FLOW, $AllOrdersREST)
+    private function WorkStatus3($FLOW, $AllOrdersREST, $SCRIPT)
     {
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-3 </h3>";
 
@@ -590,6 +591,25 @@ class FlowController extends AppController {
     }
 
 
+    private function GetNapravlenie($globaldelta, $SCRIPT)
+    {
+
+        // Получение всех потоков
+        $FLOWS = $this->GetFlowBD($SCRIPT);
+
+        if ($globaldelta >= $this->trellingBEGIN) return "long";
+        if ($globaldelta*(-1) > $this->trellingBEGIN) return "short";
+
+
+
+
+
+        return false;
+    }
+
+
+
+
     private function CheckBreakZone($FLOW, $globaldelta)
     {
 
@@ -741,7 +761,7 @@ class FlowController extends AppController {
 
 
 
-        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep*3) < $OrderREST['price'])
+        if ($FLOW['pointer'] == "long" && $pricenow > ($OrderREST['price'] + $this->Basestep*2))
         {
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
@@ -755,7 +775,7 @@ class FlowController extends AppController {
             return true;
 
         }
-        if ($FLOW['pointer'] == "short" && ($pricenow - $this->Basestep*3) > $OrderREST['price'])
+        if ($FLOW['pointer'] == "short" && $pricenow < ($OrderREST['price'] - $this->Basestep*2) )
         {
 
 
@@ -771,35 +791,6 @@ class FlowController extends AppController {
             return true;
         }
 
-        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep*3) > $OrderREST['price'])
-        {
-            echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
-            // Отменяем текущий ордер
-            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-            show($cancel);
-
-            $ARRCHANGE = [];
-            $ARRCHANGE['limitid'] = NULL;
-            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-            return true;
-
-        }
-        if ($FLOW['pointer'] == "short" && ($pricenow - $this->Basestep*3) < $OrderREST['price'])
-        {
-
-
-            echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
-            // Отменяем текущий ордер
-            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-            show($cancel);
-
-            $ARRCHANGE = [];
-            $ARRCHANGE['limitid'] = NULL;
-            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-            return true;
-        }
 
 
 
