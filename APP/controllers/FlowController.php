@@ -25,13 +25,18 @@ class FlowController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
     private $lot = 0.001; // Базовый заход
-    private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
-    private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
+    private $trellingBEGIN = 30; // Через сколько пунктов начинается треллинг
+    private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 200; // Коридор захода в позицию
+    private $DeltaMA = 50; // Коридор захода в позицию
 
     private $stoploss = 1000; // Стоп лосс в пунктах актива
+    private $urovenbreakzone = 300; // в шагах
 
+
+
+    private $timebreakzone = 60; // в минутах
+    private $maxflow = 5;
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -259,10 +264,18 @@ class FlowController extends AppController {
     {
 
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3>";
+        $Napravlenie = NULL;
 
-        // Выставление СТОПА
+        $priceENTER = ($FLOW['pricelimit'] + $FLOW['pricemarket'])/2;
+        $priceENTER = round($priceENTER);
 
-        // Контроль его работы
+        $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
+        $globaldelta = $pricenow - $priceENTER;
+        echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
+
+        if ($globaldelta >= $this->trellingBEGIN) $Napravlenie = "long";
+        if ($globaldelta*(-1) > $this->trellingBEGIN) $Napravlenie = "short";
+        echo "Направление треллинга: ".$Napravlenie."<br>";
 
 
 
@@ -270,25 +283,11 @@ class FlowController extends AppController {
         if ($FLOW['trallingstat'] == FALSE)
         {
 
-            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
-            $priceENTER = ($FLOW['pricelimit'] + $FLOW['pricemarket'])/2;
-            $priceENTER = round($priceENTER);
-
             echo "<b>Текущая цена по указателю:</b> ".$pricenow."<br>";
             echo "<b>Средняя цена входа в поток:</b> ".$priceENTER."<br>";
 
 
-            $Napravlenie = NULL;
-            $globaldelta = $pricenow - $priceENTER;
-            echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
-            $pricenow = $this->GetPriceSide($this->symbol, $Napravlenie); // Забираем корректную цену в зависимости от направления
-
-
-            if ($globaldelta > $this->trellingBEGIN) $Napravlenie = "long";
-            if ($globaldelta*(-1) > $this->trellingBEGIN) $Napravlenie = "short";
-            echo "Направление треллинга: ".$Napravlenie."<br>";
-
-
+            $pricenow = $this->GetPriceSide($this->symbol, $Napravlenie);
 
             // Проверяем в треллинге мы или нет
             $TRALLINGSTATUS = $this->TrallingControl($FLOW, $Napravlenie, $pricenow);
@@ -379,6 +378,7 @@ class FlowController extends AppController {
 
         $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
 
+
         // Выставление СТОП- ОРДЕРА
         if ($FLOW['stoporder'] == NULL){
             echo "Выставляем ПЕРВЫЙ СТОП ордер на ТЕЙК ПОЗИЦИИ!!<br><br>";
@@ -391,6 +391,7 @@ class FlowController extends AppController {
 
 
         // МЕХАНИЗМ ТРЕЛЛИНГА!!!!!
+
 
 
         if ($FLOW['trallingstat'] == FALSE)
@@ -424,6 +425,32 @@ class FlowController extends AppController {
 
             echo "Направление треллинга: ".$NapravlenieFIX."<br>";
             echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
+
+
+
+            // ПРОВЕРКА НА БРЕКЗОНУ
+
+                echo "БрекЗона = ФАЛС<br>";
+                $functionzone = $this->CheckBreakZone($FLOW, $globaldelta);
+
+                echo "БрекЗона по функции:".$functionzone."<br>";
+
+
+                // Смена БрекЗоны
+                if ($functionzone != $FLOW['breakzone'])
+                {
+                    $ARRCHANGE = [];
+                    $ARRCHANGE['breakzone'] = $functionzone;
+                    $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+                }
+
+
+
+
+
+
+
+
 
             $TRALLINGSTATUS = false;
             // Проверяем в треллинге мы или нет
@@ -540,6 +567,28 @@ class FlowController extends AppController {
     }
 
 
+    private function CheckBreakZone($FLOW, $globaldelta)
+    {
+
+        // Проверка на время
+        $rabotapotoka = time() - $FLOW['stamp'];
+        $rabotapotoka = $rabotapotoka/60;
+        $rabotapotoka = round($rabotapotoka);
+
+        echo "Работа потока в минутах:".$rabotapotoka."<br>";
+
+
+        if ($rabotapotoka > $this->timebreakzone) return true;
+
+        if ($globaldelta*(-1) > $this->urovenbreakzone) return true;
+
+
+
+
+        return false;
+    }
+
+
     private function AddFlowHistoryBD($FLOW, $OrderREST, $STOP = false)
     {
         $dollar = 0;
@@ -648,6 +697,7 @@ class FlowController extends AppController {
     private function LimitFalse($FLOW, $OrderREST, $pricenow)
     {
 
+        if (empty($OrderREST['order_status'])) return true;
 
         // ВНЕЗАПНАЯ ПОПАДАНИЕ В СТАТУС "CANCELED"
         if ($OrderREST['order_status'] == "Cancelled"){
@@ -662,15 +712,13 @@ class FlowController extends AppController {
         }
 
 
-        echo "Текущая цена:".$pricenow."<br>";
+        echo "Направление ".$FLOW['pointer']."<br>";
+        echo "Текущая цена: <b>".$pricenow."</b><br>";
         echo "Ордер выставлен по цене:".$FLOW['pricelimit']."<br>";
 
-        show($FLOW['pointer']);
 
-        // ЛОНГ
-        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep*2) > $FLOW['pricelimit'])
+        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep) > $FLOW['pricelimit'])
         {
-
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
             $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
@@ -684,26 +732,8 @@ class FlowController extends AppController {
 
         }
 
-
-        if ($FLOW['pointer'] == "long" && ($pricenow - $this->Basestep*2) < $FLOW['pricelimit'])
+        if ($FLOW['pointer'] == "long" && ($pricenow + $this->Basestep) < $FLOW['pricelimit'])
         {
-            echo "По каким-то причинам ордер не откупился и ушел. Вверх! <br>";
-            echo "<font color='#8b0000'>Колебания цены. Перевыставляем ордер!!! </font> <br>";
-            // Отменяем текущий ордер
-            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-            show($cancel);
-
-            $ARRCHANGE = [];
-            $ARRCHANGE['limitid'] = NULL;
-            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-        }
-
-
-
-        // ШОРТ
-        if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep*2) < $FLOW['pricelimit'])
-        {
-
             echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
             // Отменяем текущий ордер
             $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
@@ -714,22 +744,9 @@ class FlowController extends AppController {
             $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
             return true;
-
         }
 
-        // В шорте цена ушла наверх
-        if ($FLOW['pointer'] == "short" && ($pricenow + $this->Basestep*2) > $FLOW['pricelimit'])
-        {
-            echo "По каким-то причинам ордер не откупился и ушел. Вверх! <br>";
-            echo "<font color='#8b0000'>Колебания цены. Перевыставляем ордер!!! </font> <br>";
-            // Отменяем текущий ордер
-            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-            show($cancel);
 
-            $ARRCHANGE = [];
-            $ARRCHANGE['limitid'] = NULL;
-            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-        }
 
 
 
@@ -827,6 +844,7 @@ class FlowController extends AppController {
         $ARR['lot'] = $this->lot;
         $ARR['pointer'] = "long";
         $ARR['maxprice'] = 0;
+        $ARR['breakzone'] = false;
         $ARR['stamp'] = time();
 
 
