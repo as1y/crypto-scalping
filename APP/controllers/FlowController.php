@@ -31,7 +31,7 @@ class FlowController extends AppController {
     private $DeltaMA = 200; // Коридор захода в позицию
 
     private $stoploss = 1000; // Стоп лосс в пунктах актива
-    private $urovenbreakzone = 300; // в шагах
+    private $urovenbreakzone = 200; // в шагах
 
 
 
