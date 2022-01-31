@@ -461,7 +461,7 @@ class FlowController extends AppController {
 
 
                 // Смена БрекЗоны
-                if ($functionzone == true)
+                if ($FLOW['breakzone'] == false && $functionzone == true)
                 {
                     $ARRCHANGE = [];
                     $ARRCHANGE['breakzone'] = $functionzone;
@@ -628,8 +628,8 @@ class FlowController extends AppController {
             //if (abs($globaldelta) >= $this->trellingBEGIN) return "long";
 
         }
-
-        if ($napravlenieBD['napravlenie'] == "long")
+ 
+        if ($napravlenieBD == "long")
         {
             echo "<i>В прошлый раз мы шли по направлению LONG. Значит у нас убыточная позиция в SHORT</i><br>";
             echo "Значит нам нужно открыть позицию в SHORT, чтобы финальная позиция была LONG<br>";
