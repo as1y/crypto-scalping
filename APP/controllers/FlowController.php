@@ -342,7 +342,9 @@ class FlowController extends AppController {
         {
 
 
-            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlenie']);
+
+            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlefix']);
+
 
             if ($FLOW['limitid'] == NULL){
 
@@ -365,7 +367,7 @@ class FlowController extends AppController {
 
             // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
             if ($this->OrderControl($OrderREST) === FALSE){
-                $FLOW['pointer'] = $Napravlenie;
+                $FLOW['pointer'] = $FLOW['napravlefix'];
                 $this->LimitFalse($FLOW, $OrderREST, $pricenow);
                 return true;
             }
