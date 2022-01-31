@@ -158,7 +158,7 @@ class FlowController extends AppController {
         $counbreak = 0;
         foreach ($FLOWS as $key => $FLOW) {
             echo "КОНТРОЛЬ ПОТОКА ID:  ".$FLOW['id']."<br><br>";
-            if ($FLOW['breakzone'] == true) $counbreak = $counbreak +1;
+            if ($FLOW['breakzone'] == 1) $counbreak = $counbreak +1;
 
         }
 
@@ -461,7 +461,7 @@ class FlowController extends AppController {
 
 
                 // Смена БрекЗоны
-                if ($functionzone != $FLOW['breakzone'])
+                if ($functionzone == true)
                 {
                     $ARRCHANGE = [];
                     $ARRCHANGE['breakzone'] = $functionzone;
