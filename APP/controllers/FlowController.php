@@ -360,12 +360,12 @@ class FlowController extends AppController {
             }
 
             $OrderREST = $this->GetOneOrderREST($FLOW['limitid'], $AllOrdersREST);
-            echo "<b>REST LIMIT ORDER: </b> <br>";
+            echo "<b>REST LIMIT ORDER STAT2: </b> <br>";
             show($OrderREST);
 
             // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
             if ($this->OrderControl($OrderREST) === FALSE){
-                $FLOW['pointer'] = $FLOW['napravlenie'];
+                $FLOW['pointer'] = $Napravlenie;
                 $this->LimitFalse($FLOW, $OrderREST, $pricenow);
                 return true;
             }
