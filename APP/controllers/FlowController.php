@@ -296,7 +296,7 @@ class FlowController extends AppController {
 
         $Napravlenie = $this->GetNapravlenie($globaldelta, $SCRIPT);
 
-        echo "Направление треллинга: ".$Napravlenie."<br>";
+        echo "<b>Направление треллинга по прошлым потокам: </b> ".$Napravlenie."<br>";
 
 
 
@@ -606,10 +606,26 @@ class FlowController extends AppController {
         }
 
 
+
         // Направление последнего потока
-        $lastFLOW = R::findLast('table_name');
-        if ($lastFLOW['napravlenie'] == "short" &&  ($globaldelta >= $this->trellingBEGIN)) return "long";
-        if ($lastFLOW['napravlenie'] == "long" &&  ($globaldelta*(-1) > $this->trellingBEGIN)) return "short";
+        $lastFLOW = R::findLast('flows');
+
+
+        if ($lastFLOW['napravlenie'] == "short"){
+
+            echo "<i>В прошлый раз мы шли по направлению SHORT. Значит у нас убыточная позиция в LONG</i><br>";
+            echo "Значит нам нужно открыть позицию в LONG, чтобы финальная позиция была SHORT";
+            if (abs($globaldelta) >= $this->trellingBEGIN) return "long";
+
+        }
+
+        if ($lastFLOW['napravlenie'] == "long")
+        {
+            echo "<i>В прошлый раз мы шли по направлению LONG. Значит у нас убыточная позиция в SHORT</i><br>";
+            echo "Значит нам нужно открыть позицию в SHORT, чтобы финальная позиция была LONG";
+            if (abs($globaldelta) >= $this->trellingBEGIN) return "short";
+        }
+
 
 
         return false;
