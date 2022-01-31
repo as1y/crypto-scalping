@@ -319,8 +319,13 @@ class FlowController extends AppController {
 
             if ($TRALLINGSTATUS == true)
             {
+
+
+                $NapravlenieFIX = ($Napravlenie == 'long') ? 'short' : 'long';
+
                 $ARRCHANGE = [];
                 $ARRCHANGE['napravlenie'] = $Napravlenie;
+                $ARRCHANGE['napravlefix'] = $NapravlenieFIX;
                 $ARRCHANGE['trallingstat'] = TRUE;
                 $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
@@ -628,7 +633,7 @@ class FlowController extends AppController {
             //if (abs($globaldelta) >= $this->trellingBEGIN) return "long";
 
         }
- 
+
         if ($napravlenieBD == "long")
         {
             echo "<i>В прошлый раз мы шли по направлению LONG. Значит у нас убыточная позиция в SHORT</i><br>";
