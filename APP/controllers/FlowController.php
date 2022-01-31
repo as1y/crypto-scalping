@@ -35,7 +35,7 @@ class FlowController extends AppController {
 
 
 
-    private $timebreakzone = 120; // в минутах
+    private $timebreakzone = 30; // в минутах
     private $maxflow = 5;
 
 
@@ -608,22 +608,33 @@ class FlowController extends AppController {
 
 
         // Направление последнего потока
-        $lastFLOW = R::findLast('flows');
+        $FLOWS = R::findAll('flows');
+        $countflows = count($FLOWS);
+        $napravlenieBD = false;
+        $i = 0;
+        foreach ($FLOWS as $key=>$FLOW)
+        {
+            $i++;
+            if ($i == $countflows - 1) $napravlenieBD = $FLOW['napravlenie'];
+        }
+        // Направление последнего потока
 
 
-        if ($lastFLOW['napravlenie'] == "short"){
+        if ($napravlenieBD == "short"){
 
             echo "<i>В прошлый раз мы шли по направлению SHORT. Значит у нас убыточная позиция в LONG</i><br>";
-            echo "Значит нам нужно открыть позицию в LONG, чтобы финальная позиция была SHORT";
+            echo "Значит нам нужно открыть позицию в LONG, чтобы финальная позиция была SHORT<br>";
             if (abs($globaldelta) >= $this->trellingBEGIN) return "long";
+            //if (abs($globaldelta) >= $this->trellingBEGIN) return "long";
 
         }
 
-        if ($lastFLOW['napravlenie'] == "long")
+        if ($napravlenieBD['napravlenie'] == "long")
         {
             echo "<i>В прошлый раз мы шли по направлению LONG. Значит у нас убыточная позиция в SHORT</i><br>";
-            echo "Значит нам нужно открыть позицию в SHORT, чтобы финальная позиция была LONG";
+            echo "Значит нам нужно открыть позицию в SHORT, чтобы финальная позиция была LONG<br>";
             if (abs($globaldelta) >= $this->trellingBEGIN) return "short";
+     //     if ($globaldelta*(-1) >= $this->trellingBEGIN) return "short";
         }
 
 
