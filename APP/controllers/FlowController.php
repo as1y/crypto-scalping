@@ -25,18 +25,19 @@ class FlowController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
     private $lot = 0.001; // Базовый заход
-    private $trellingBEGIN = 30; // Через сколько пунктов начинается треллинг
-    private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
+    private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
+    private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 200; // Коридор захода в позицию
+    private $DeltaMA = 200; // Коридор захода в позицию по МА
 
     private $stoploss = 1000; // Стоп лосс в пунктах актива
-    private $urovenbreakzone = 200; // в шагах
+
+    private $urovenbreakzone = 500; // в шагах
+    private $timebreakzone = 60; // в минутах
 
 
 
-    private $timebreakzone = 30; // в минутах
-    private $maxflow = 5;
+    private $maxflow = 6;
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -808,31 +809,34 @@ class FlowController extends AppController {
         if ($FLOW['pointer'] == "long" && $pricenow > ($OrderREST['price'] + $this->Basestep*2))
         {
             echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
-            // Отменяем текущий ордер
-            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-            show($cancel);
-
-            $ARRCHANGE = [];
-            $ARRCHANGE['limitid'] = NULL;
-            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-            return true;
-
+            $this->CancelLimit($FLOW);
         }
+
+
+
+        if ($FLOW['pointer'] == "long" && $pricenow < ($OrderREST['price'] - $this->Basestep*5))
+        {
+            echo "<font color='#8b0000'>WORKSIDE: long;  Цена ушла НИЖЕ. Нужно перевыставлят ордер!!! </font> <br>";
+            $this->CancelLimit($FLOW);
+        }
+
+
+
+
         if ($FLOW['pointer'] == "short" && $pricenow < ($OrderREST['price'] - $this->Basestep*2) )
         {
 
-
             echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла выше. Нужно перевыставлят ордер!!! </font> <br>";
-            // Отменяем текущий ордер
-            $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
-            show($cancel);
+            $this->CancelLimit($FLOW);
 
-            $ARRCHANGE = [];
-            $ARRCHANGE['limitid'] = NULL;
-            $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+        }
 
-            return true;
+        if ($FLOW['pointer'] == "short" && $pricenow > ($OrderREST['price'] + $this->Basestep*5) )
+        {
+
+            echo "<font color='#8b0000'>WORKSIDE: short;  Цена ушла ВЫШЕ. Нужно перевыставлят ордер!!! </font> <br>";
+            $this->CancelLimit($FLOW);
+
         }
 
 
@@ -920,6 +924,22 @@ class FlowController extends AppController {
         return $order;
 
     }
+
+
+    private function CancelLimit($FLOW)
+    {
+
+        $cancel = $this->EXCHANGECCXT->cancel_order($FLOW['limitid'], $this->symbol);
+        show($cancel);
+
+        $ARRCHANGE = [];
+        $ARRCHANGE['limitid'] = NULL;
+        $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+
+        return true;
+
+    }
+
 
 
     private function AddFlow($SCRIPT, $PARAMS = [])
