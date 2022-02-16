@@ -28,7 +28,9 @@ class FlowController extends AppController {
     private $trellingBEGIN = 60; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 100; // Коридор захода в позицию по МА
+    private $DeltaMA = 300; // Коридор захода в позицию по МА
+    private $DeltaMALUFT = 50; // Проверка на точку входа
+
 
     private $stoploss = 2000; // Стоп лосс в пунктах актива
 
@@ -463,6 +465,11 @@ class FlowController extends AppController {
 
         echo "Отклонение по МА: ".$otklonenie."<br>";
 
+        // Проверка на точку входа
+        if ($otklonenie > 0 && $otklonenie < $this->DeltaMALUFT) return false;
+        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMALUFT) return false;
+
+
         if ($otklonenie > 0 && $otklonenie < $this->DeltaMA) return "short";
         if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMA) return "long";
 
@@ -479,16 +486,8 @@ class FlowController extends AppController {
         // Получение всех потоков
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
-        $LASTFLOW = $this->GetLastFlowBD($SCRIPT);
+        $LASTFLOW = $this->GetLastFlowBD($FLOWS);
 
-        // СЧИТАЕМ КОЛ-ВО НАПРАВЛЕНИЙ
-        $countlong = 0;
-        $countshort = 0;
-        foreach ($FLOWS as $key=>$FLOW)
-        {
-            if ($FLOW['napravlenie'] == "long") $countlong = $countlong + 1;
-            if ($FLOW['napravlenie'] == "short") $countshort = $countshort + 1;
-        }
 
         $SCORING = $this->CheckSCORING();
 
@@ -500,8 +499,8 @@ class FlowController extends AppController {
                 if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "long") break; // Если есть открытый лонг, то завершаем
             }
 
-            if (empty($LASTFLOW['napravlenie'])) return "long"; // Если переменная пустая, то полюбому открываем
-            if ($LASTFLOW['napravlenie'] == "short")  return "long"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
+            if ($LASTFLOW == false) return "long";
+            if ($LASTFLOW == "short")  return "long"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
 
         }
 
@@ -513,9 +512,9 @@ class FlowController extends AppController {
                 if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break; // Если есть открытый лонг
             }
 
-            if (empty($LASTFLOW['napravlenie'])) return "short"; // Если переменная пустая, то полюбому открываем
-            if ($LASTFLOW['napravlenie'] == "long")  return "short"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
-            
+            if ($LASTFLOW == false) return "short";
+            if ($LASTFLOW == "long")  return "short"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
+
         }
 
 
@@ -1114,10 +1113,22 @@ class FlowController extends AppController {
     }
 
 
-    private function GetLastFlowBD($SCRIPT)
+    private function GetLastFlowBD($FLOWS)
     {
-        $flows = R::findONE("flows", 'WHERE scriptid =? ORDER BY id DESC LIMIT 1', [$SCRIPT['id']]);
-        return $flows;
+
+        $countflows = count($FLOWS);
+        if ($countflows == 1) return false;
+
+        $count = 0;
+
+        // ПОСЛЕДНИЙ ПОТОК
+        $lastflow = $countflows - 1;
+
+        return $FLOWS[$lastflow]['napravlenie'];
+
+
+
+
     }
 
 
