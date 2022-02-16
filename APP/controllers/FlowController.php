@@ -31,6 +31,7 @@ class FlowController extends AppController {
     private $DeltaMA = 300; // Коридор захода в позицию по МА
     private $DeltaMALUFT = 50; // Проверка на точку входа
 
+    private $limitmoneta = 3000; // Скоринг монеты на объемы
 
     private $stoploss = 2000; // Стоп лосс в пунктах актива
 
@@ -39,7 +40,7 @@ class FlowController extends AppController {
 
 
 
-    private $maxflow = 12;
+    private $maxflow = 8;
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -453,6 +454,7 @@ class FlowController extends AppController {
 
         echo "<b><font color='#663399'>Проводим скоринг...</font></b><br>";
 
+
         $otklonenie = 0;
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
@@ -460,6 +462,10 @@ class FlowController extends AppController {
         $MaVAL = GetMA($this->KLINES30M);
         //  show($MaVAL);
 
+        // БАЗОВЫЙ СКОРИНГ
+        $SCORING = SCORING($this->KLINES30M, $pricenow);
+
+        if ($SCORING['VOL'] < $this->limitmoneta) return false; // Фильтр на объем торгов
 
         $otklonenie = $pricenow - $MaVAL;
 

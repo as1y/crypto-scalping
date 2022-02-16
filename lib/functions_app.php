@@ -69,10 +69,10 @@ function SCORING($KLINES, $pricenow){
 
 //    $MASS['KORSIZE'] = GetKoridorSize($KLINES, 5)['KORSIZE'];
 //    $MASS['AVGKOR'] = GetKoridorSize($KLINES, 5)['AVG'];
-//    $MASS['COLOR'] = GetColorLastKline($KLINES);
+    $MASS['COLOR'] = GetColorLastKline($KLINES);
 //    $MASS['DLINNA'] = abs(GetDlinneKline($KLINES));
- //   $MASS['VOL'] = round(end($endKlines)/$pricenow);
- //   $MASS['VOLPREV'] = round(end($prevKlines)/$pricenow);
+    $MASS['VOL'] = round(end($endKlines)/$pricenow);
+    $MASS['VOLPREV'] = round(end($prevKlines)/$pricenow);
 
     return $MASS;
 }
