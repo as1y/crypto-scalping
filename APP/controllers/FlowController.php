@@ -140,7 +140,6 @@ class FlowController extends AppController {
 
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
-
         // Определяем сколько потоков
         $countflows = count($FLOWS);
         $counbreak = 0;
@@ -480,6 +479,7 @@ class FlowController extends AppController {
         // Получение всех потоков
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
+        $LASTFLOW = $this->GetLastFlowBD($SCRIPT);
 
         // СЧИТАЕМ КОЛ-ВО НАПРАВЛЕНИЙ
         $countlong = 0;
@@ -497,9 +497,12 @@ class FlowController extends AppController {
         {
             foreach ($FLOWS as $key=>$FLOW)
             {
-                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "long") break; // Если есть открытый лонг
+                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "long") break; // Если есть открытый лонг, то завершаем
             }
-            return "long";
+
+            if (empty($LASTFLOW['napravlenie'])) return "long"; // Если переменная пустая, то полюбому открываем
+            if ($LASTFLOW['napravlenie'] == "short")  return "long"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
+
         }
 
 
@@ -510,8 +513,9 @@ class FlowController extends AppController {
                 if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break; // Если есть открытый лонг
             }
 
-            return "short";
-
+            if (empty($LASTFLOW['napravlenie'])) return "short"; // Если переменная пустая, то полюбому открываем
+            if ($LASTFLOW['napravlenie'] == "long")  return "short"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
+            
         }
 
 
@@ -1109,6 +1113,12 @@ class FlowController extends AppController {
         return $flows;
     }
 
+
+    private function GetLastFlowBD($SCRIPT)
+    {
+        $flows = R::findONE("flows", 'WHERE scriptid =? ORDER BY id DESC LIMIT 1', [$SCRIPT['id']]);
+        return $flows;
+    }
 
 
 
