@@ -11,8 +11,8 @@ class StatController extends AppController {
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
-    public $ApiKey = "U5I2AoIrTk4gBR7XLB";
-    public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
+    public $ApiKey = "wxWygsLmxxSw9fOrWj";
+    public $SecretKey = "WZUfQHGXgRYvf4HprQ5LFpev4ysAtmk6lYa2";
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -56,15 +56,14 @@ class StatController extends AppController {
         ));
 
 
-       // $this->BALANCE = $this->GetBal()['USDT'];
+        $this->BALANCE = $this->GetBal()['USDT'];
 
-    //    $this->BALANCE['total'] = round($this->BALANCE['total'], 2);
+        $this->BALANCE['total'] = round($this->BALANCE['total'], 2);
 
-      //  $Balyesterday = 499;
+        $Balyesterday = 7;
 
         echo "112БАЛАНС ВЧЕРА:<br>";
 
-        exit("11");
 
 
         echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE['total']."<br>";

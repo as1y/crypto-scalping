@@ -6,29 +6,29 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class FlowController extends AppController {
+class KonorController extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
-    public $ApiKey = "TvLAD7I4Qz5cEBvaBh";
-    public $SecretKey = "2z3NSPXjryoUZQdz44xAf0THglGheTsarSmO";
+    public $ApiKey = "wxWygsLmxxSw9fOrWj";
+    public $SecretKey = "WZUfQHGXgRYvf4HprQ5LFpev4ysAtmk6lYa2";
 
 
     // Переменные для стратегии
     public $leverege = 90;
     public $symbol = "BTC/USDT";
     public $Basestep = 0.5;
-    public $emailex  = "raskrutkaweb@yandex.ru"; // Сумма захода USD
+    public $emailex  = "as1y@yandex.ru"; // Сумма захода USD
 
 
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
-    private $lot = 0.001; // Базовый заход
+    private $lot = 0.05; // Базовый заход
     private $trellingBEGIN = 60; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 300; // Коридор захода в позицию по МА
+    private $DeltaMA = 50; // Коридор захода в позицию по МА
 
     private $stoploss = 2000; // Стоп лосс в пунктах актива
 
@@ -37,7 +37,7 @@ class FlowController extends AppController {
 
 
 
-    private $maxflow = 12;
+    private $maxflow = 16;
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -105,7 +105,7 @@ class FlowController extends AppController {
         }
 
 
-       // show($SCRIPT);
+        // show($SCRIPT);
 
         if ($SCRIPT['work'] == 1) {
             echo "Скрипт в работе. Пропускаем цикл<br>";
@@ -136,7 +136,7 @@ class FlowController extends AppController {
 
     public function FlowControl($SCRIPT)
     {
-            echo "<h2> Контроль потоков </h2> <br>";
+        echo "<h2> Контроль потоков </h2> <br>";
 
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
@@ -157,21 +157,21 @@ class FlowController extends AppController {
         echo "<b>Кол-во РАБОЧИХ потоков: </b>".$counwork."<br>";
 
 
-        if ($counwork < 1 && $countflows < $this->maxflow)
+        if ($counwork < 2 && $countflows < $this->maxflow)
         {
 
-                echo "<font color='green'> Можем создать еще 1 поток!!! </font><br>";
-
-                     $this->AddFlow($SCRIPT);
+            echo "<font color='green'> Можем создать еще 1 поток!!! </font><br>";
+            $SCORING = $this->CheckSCORING();
+            if ($SCORING == true) $this->AddFlow($SCRIPT);
 
 
         }
 
 
 
-            echo "<hr>";
+        echo "<hr>";
 
-            return true;
+        return true;
     }
 
 
@@ -210,15 +210,15 @@ class FlowController extends AppController {
     {
 
 
-            echo "<h3> РАБОТА ПОТОКА. СТАТУС-1 </h3> <br>";
+        echo "<h3> РАБОТА ПОТОКА. СТАТУС-1 </h3> <br>";
 
         $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
 
         // show($FLOW);
-            // ВЫСТАВЛЯЕМ ПЕРВЫЙ ЛИМИТНИК
+        // ВЫСТАВЛЯЕМ ПЕРВЫЙ ЛИМИТНИК
         if ($FLOW['limitid'] == NULL){
 
-                echo "Базовый лимитник пустой. Выставляем<br>";
+            echo "Базовый лимитник пустой. Выставляем<br>";
             $order = $this->CreateFirstOrder($FLOW, $pricenow);
             $ARRCHANGE = [];
             $ARRCHANGE['limitid'] = $order['id'];
@@ -247,10 +247,10 @@ class FlowController extends AppController {
         echo "<font color='green'>Ордер исполнен</font><br>";
 
 
-           // show($FLOW);
+        // show($FLOW);
 
-            $order = $this->MarketOrder($FLOW);
-            // ЕСЛИ ЗАШЕЛ, ТО ВЫКУПАТЬ ПО МАРКЕТУ ОБРАТКУ
+        $order = $this->MarketOrder($FLOW);
+        // ЕСЛИ ЗАШЕЛ, ТО ВЫКУПАТЬ ПО МАРКЕТУ ОБРАТКУ
 
 
 
@@ -265,7 +265,7 @@ class FlowController extends AppController {
 
 
 
-            //  ЕСЛИ ЗАШЕЛ И ТУДА И СЮДА, ТО МЕНЯТЬ НА СТАТУС 2
+        //  ЕСЛИ ЗАШЕЛ И ТУДА И СЮДА, ТО МЕНЯТЬ НА СТАТУС 2
 
 
 
@@ -450,22 +450,22 @@ class FlowController extends AppController {
 
             // ПРОВЕРКА НА БРЕКЗОНУ
 
-                $functionzone = $this->CheckBreakZone($FLOW, $globaldelta);
+            $functionzone = $this->CheckBreakZone($FLOW, $globaldelta);
 
-                if ($functionzone == false)
-                {
-                    echo "<b><font color='#8b0000'>БрекЗона по функции:</font></b>".$functionzone."<br>";
-                }
+            if ($functionzone == false)
+            {
+                echo "<b><font color='#8b0000'>БрекЗона по функции:</font></b>".$functionzone."<br>";
+            }
 
 
 
-                // Смена БрекЗоны
-                if ($FLOW['breakzone'] == false && $functionzone == true)
-                {
-                    $ARRCHANGE = [];
-                    $ARRCHANGE['breakzone'] = $functionzone;
-                    $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-                }
+            // Смена БрекЗоны
+            if ($FLOW['breakzone'] == false && $functionzone == true)
+            {
+                $ARRCHANGE = [];
+                $ARRCHANGE['breakzone'] = $functionzone;
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+            }
 
 
 
@@ -573,13 +573,11 @@ class FlowController extends AppController {
 
 
         $otklonenie = $pricenow - $MaVAL;
+        if ($pricenow < $MaVAL) $otklonenie = $MaVAL - $pricenow;
 
         echo "Отклонение по МА: ".$otklonenie."<br>";
 
-        if ($otklonenie > 0 && $otklonenie < $this->DeltaMA) return "short";
-        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMA) return "long";
-
-
+        if ($otklonenie < $this->DeltaMA) return true;
 
         return false;
 
@@ -602,23 +600,19 @@ class FlowController extends AppController {
             if ($FLOW['napravlenie'] == "short") $countshort = $countshort + 1;
         }
 
-        $SCORING = $this->CheckSCORING();
 
 
-
-            // Треллинг успешно прошел на ЛОНГ. Проверяем есть ли открытый поток лонга. Если есть, то не открываем направление
+        // Треллинг успешно прошел на ЛОНГ. Проверяем есть ли открытый поток лонга. Если есть, то не открываем направление
         if (abs($globaldelta) >= $this->trellingBEGIN)
         {
             foreach ($FLOWS as $key=>$FLOW)
             {
-                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "long") break; // Если есть открытый лонг
+                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "long") break;
             }
 
             // Если кол-во потоков не одинаковое, то запрещаем
-            if ($countlong < $this->maxflow/2)
-            {
-                if ($SCORING == "long") return "long";
-            }
+            if ($countlong < $this->maxflow/2) return "long";
+
 
         }
 
@@ -629,15 +623,11 @@ class FlowController extends AppController {
         {
             foreach ($FLOWS as $key=>$FLOW)
             {
-                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break; // Если есть открытый лонг
+                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break;
             }
 
             // Если кол-во потоков не одинаковое, то запрещаем
-            if ($countshort < $this->maxflow/2)
-            {
-                if ($SCORING == "short") return "short";
-                return "short";
-            }
+            if ($countshort < $this->maxflow/2)   return "short";
 
 
 
@@ -665,7 +655,7 @@ class FlowController extends AppController {
         echo "Работа потока в минутах:".$rabotapotoka."<br>";
 
 
-     //   if ($rabotapotoka > $this->timebreakzone) return true;
+        //   if ($rabotapotoka > $this->timebreakzone) return true;
 
         if ($globaldelta*(-1) > $this->urovenbreakzone) return true;
 
@@ -1062,9 +1052,9 @@ class FlowController extends AppController {
         return $RESULT;
 
 
-       // $RESULT = $this->EXCHANGECCXT->fetch_orders($this->symbol, null, 50);
+        // $RESULT = $this->EXCHANGECCXT->fetch_orders($this->symbol, null, 50);
 
-      //  return $RESULT;
+        //  return $RESULT;
 
     }
 
