@@ -465,7 +465,8 @@ class FlowController extends AppController {
         // БАЗОВЫЙ СКОРИНГ
         $SCORING = SCORING($this->KLINES30M, $pricenow);
 
-        if ($SCORING['VOL'] < $this->limitmoneta) return false; // Фильтр на объем торгов
+
+        if ($SCORING['VOL'] > $this->limitmoneta) return false; // Фильтр на объем торгов
 
         $otklonenie = $pricenow - $MaVAL;
 
@@ -492,7 +493,7 @@ class FlowController extends AppController {
         // Получение всех потоков
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
-        $LASTFLOW = $this->GetLastFlowBD($FLOWS);
+        $LASTFLOW = $this->GetLastFlowBD($FLOWS, $SCRIPT);
 
 
         $SCORING = $this->CheckSCORING();
@@ -1119,21 +1120,23 @@ class FlowController extends AppController {
     }
 
 
-    private function GetLastFlowBD($FLOWS)
+    private function GetLastFlowBD($FLOWS, $SCRIPT)
     {
 
         $countflows = count($FLOWS);
         if ($countflows == 1) return false;
 
+
+        $LastFLOWS = R::findAll("flows", 'WHERE scriptid =? ORDER BY id DESC LIMIT 2', [$SCRIPT['id']]);
+
         $count = 0;
+        foreach ( $LastFLOWS as $lastFLOW)
+        {
+            if ($count == 0) $LF = $lastFLOW;
 
-        // ПОСЛЕДНИЙ ПОТОК
-        $lastflow = $countflows - 1;
+        }
 
-        return $FLOWS[$lastflow]['napravlenie'];
-
-
-
+        return $LF['napravlenie'];
 
     }
 
