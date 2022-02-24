@@ -24,20 +24,22 @@ class KonorController extends AppController {
 
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
-    private $lot = 0.05; // Базовый заход
-    private $trellingBEGIN = 60; // Через сколько пунктов начинается треллинг
-    private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
+    private $lot = 0.03; // Базовый заход
+    private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
+    private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 50; // Коридор захода в позицию по МА
-
-    private $stoploss = 2000; // Стоп лосс в пунктах актива
-
-    private $urovenbreakzone = 150; // в шагах
+    private $DeltaMA = 200; // Коридор захода в позицию по МА
+    private $DeltaMALUFT = 0; // Проверка на точку входа
 
 
 
+    private $stoploss = 1500; // Стоп лосс в пунктах актива
 
-    private $maxflow = 16;
+    private $urovenbreakzone = 200; // в шагах
+
+    private $limitmoneta = 3000; // Скоринг монеты на объемы
+
+    private $maxflow = 6;
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -140,7 +142,6 @@ class KonorController extends AppController {
 
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
-
         // Определяем сколько потоков
         $countflows = count($FLOWS);
         $counbreak = 0;
@@ -157,14 +158,10 @@ class KonorController extends AppController {
         echo "<b>Кол-во РАБОЧИХ потоков: </b>".$counwork."<br>";
 
 
-        if ($counwork < 2 && $countflows < $this->maxflow)
+        if ($counwork < 1 && $countflows < $this->maxflow)
         {
-
             echo "<font color='green'> Можем создать еще 1 поток!!! </font><br>";
-            $SCORING = $this->CheckSCORING();
-            if ($SCORING == true) $this->AddFlow($SCRIPT);
-
-
+            $this->AddFlow($SCRIPT);
         }
 
 
@@ -214,11 +211,23 @@ class KonorController extends AppController {
 
         $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
 
+
+        $Napravlenie = NULL;
+        $Napravlenie = $this->GetNapravlenie($SCRIPT);
+
+
         // show($FLOW);
         // ВЫСТАВЛЯЕМ ПЕРВЫЙ ЛИМИТНИК
         if ($FLOW['limitid'] == NULL){
 
+            if ($Napravlenie == false)
+            {
+                echo "<font color='#8b0000'>НЕ ПОДХОДЯЩИЙ СКОРИНГ</font><br>";
+                return false;
+            }
+
             echo "Базовый лимитник пустой. Выставляем<br>";
+            $FLOW['pointer'] = $Napravlenie;
             $order = $this->CreateFirstOrder($FLOW, $pricenow);
             $ARRCHANGE = [];
             $ARRCHANGE['limitid'] = $order['id'];
@@ -228,7 +237,6 @@ class KonorController extends AppController {
             return true;
 
         }
-
 
         // ПРОВЕРЯТЬ СТАТУС ЛИМИТНИКА
         $OrderREST = $this->GetOneOrderREST($FLOW['limitid'], $AllOrdersREST); // Ордер РЕСТ статус 2
@@ -246,17 +254,15 @@ class KonorController extends AppController {
 
         echo "<font color='green'>Ордер исполнен</font><br>";
 
-
-        // show($FLOW);
-
-        $order = $this->MarketOrder($FLOW);
-        // ЕСЛИ ЗАШЕЛ, ТО ВЫКУПАТЬ ПО МАРКЕТУ ОБРАТКУ
+        if ($OrderREST['side'] == "Buy") $Napravlenie = "long";
+        if ($OrderREST['side'] == "Sell") $Napravlenie = "short";
 
 
 
         $ARRCHANGE = [];
         $ARRCHANGE['limitid'] = NULL;
-        $ARRCHANGE['pricemarket'] = $pricenow;
+        $ARRCHANGE['enterprice'] = $OrderREST['price'];
+        $ARRCHANGE['napravlenie'] = $Napravlenie;
         $ARRCHANGE['status'] = 2;
         $ARRCHANGE['ostatok'] = 0;
         $ARRCHANGE['trallingstat'] = FALSE;
@@ -274,137 +280,18 @@ class KonorController extends AppController {
 
     private function WorkStatus2($FLOW, $AllOrdersREST, $SCRIPT)
     {
-
-        echo "<h3> РАБОТА ПОТОКА. СТАТУС-2 </h3>";
-        $Napravlenie = NULL;
-
-        $priceENTER = ($FLOW['pricelimit'] + $FLOW['pricemarket'])/2;
-        $priceENTER = round($priceENTER);
-
-        $pricenow = $this->GetPriceSide($this->symbol, $FLOW['pointer']);
-        $globaldelta = $pricenow - $priceENTER;
-        echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
-
-
-        $Napravlenie = $this->GetNapravlenie($globaldelta, $SCRIPT);
-
-        echo "<b>Направление треллинга по прошлым потокам: </b> ".$Napravlenie."<br>";
-
-
-
-        // Заходим в зону треллинга и треллим
-        if ($FLOW['trallingstat'] == FALSE)
-        {
-
-            echo "<b>Текущая цена по указателю:</b> ".$pricenow."<br>";
-            echo "<b>Средняя цена входа в поток:</b> ".$priceENTER."<br>";
-
-
-            $pricenow = $this->GetPriceSide($this->symbol, $Napravlenie);
-
-            // Проверяем в треллинге мы или нет
-            $TRALLINGSTATUS = $this->TrallingControl($FLOW, $Napravlenie, $pricenow);
-
-            echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
-            var_dump($TRALLINGSTATUS);
-
-
-            if ($TRALLINGSTATUS == true)
-            {
-
-
-                $NapravlenieFIX = ($Napravlenie == 'long') ? 'short' : 'long';
-
-                $ARRCHANGE = [];
-                $ARRCHANGE['napravlenie'] = $Napravlenie;
-                $ARRCHANGE['napravlefix'] = $NapravlenieFIX;
-                $ARRCHANGE['trallingstat'] = TRUE;
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-            }
-
-
-            // Записываем в БД, что мы треллим этот поток
-
-
-        }
-
-        // Если наш статус уже определен. Выставляем ордера
-        if ($FLOW['trallingstat'] == TRUE)
-        {
-
-            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlefix']);
-
-            if ($FLOW['limitid'] == NULL){
-
-                echo "<font color='#8b0000'> Выставляем ЛИМИТНИК на ТРЕЛЛИНГ </font><br>";
-
-                $order = $this->CreateFirstOrder($FLOW, $pricenow, true);
-                show($order);
-
-                $ARRCHANGE = [];
-                $ARRCHANGE['limitid'] = $order['id'];
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-                return true;
-
-            }
-
-            $OrderREST = $this->GetOneOrderREST($FLOW['limitid'], $AllOrdersREST);
-            echo "<b>REST LIMIT ORDER STAT2: </b> <br>";
-            show($OrderREST);
-
-            // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
-            if ($this->OrderControl($OrderREST) === FALSE){
-                $FLOW['pointer'] = $FLOW['napravlefix'];
-                $this->LimitFalse($FLOW, $OrderREST, $pricenow);
-                return true;
-            }
-
-
-
-            if ($OrderREST['order_status'] == "Filled")
-            {
-
-                echo "<b><font color='green'>ТРЕЛЛИНГ ПРОШЕЛ УСПЕШНО:</font></b> <br>";
-
-                $ARRCHANGE = [];
-                $ARRCHANGE['status'] = 3;
-                $ARRCHANGE['limitid'] = NULL;
-                $ARRCHANGE['trallingstat'] = FALSE;
-                $ARRCHANGE['maxprice'] = 0;
-                $ARRCHANGE['ostatok'] = 0;
-                $ARRCHANGE['fixstep1'] = $OrderREST['price'];
-
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-
-
-
-            }
-
-
-
-        }
-
-
-        return true;
-    }
-
-    private function WorkStatus3($FLOW, $AllOrdersREST, $SCRIPT)
-    {
         echo "<h3> РАБОТА ПОТОКА. СТАТУС-3 </h3>";
 
         // КОНТРОЛЬ НА СТОП-ЛОСС
 
-        $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
 
 
         // Выставление СТОП- ОРДЕРА
         if ($FLOW['stoporder'] == NULL){
             echo "Выставляем ПЕРВЫЙ СТОП ордер на ТЕЙК ПОЗИЦИИ!!<br><br>";
-            if ($NapravlenieFIX == "long") $StopPrice = $FLOW['fixstep1'] - $this->stoploss;
-            if ($NapravlenieFIX == "short") $StopPrice = $FLOW['fixstep1'] + $this->stoploss;
-            $this->CreateStop($FLOW, $NapravlenieFIX, $StopPrice);
+            if ($FLOW['napravlenie'] == "long") $StopPrice = $FLOW['enterprice'] - $this->stoploss;
+            if ($FLOW['napravlenie'] == "short") $StopPrice = $FLOW['enterprice'] + $this->stoploss;
+            $this->CreateStop($FLOW, $FLOW['napravlenie'], $StopPrice);
             return true;
         }
 
@@ -434,16 +321,16 @@ class KonorController extends AppController {
 
             // Определение направления
 
-            $pricenow = $this->GetPriceSide($this->symbol, $NapravlenieFIX);
+            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlenie']);
 
             echo "<b>Текущая цена:</b> ".$pricenow."<br>";
-            echo "<b>Точка от которой будем треллить:</b> ".$FLOW['fixstep1']."<br>";
+            echo "<b>Точка от которой будем треллить:</b> ".$FLOW['enterprice']."<br>";
 
             $globaldelta = 0;
-            if ($NapravlenieFIX == "long")  $globaldelta = $pricenow - $FLOW['fixstep1'];
-            if ($NapravlenieFIX == "short")  $globaldelta = $FLOW['fixstep1'] - $pricenow;
+            if ($FLOW['napravlenie'] == "long")  $globaldelta = $pricenow - $FLOW['enterprice'];
+            if ($FLOW['napravlenie'] == "short")  $globaldelta = $FLOW['enterprice'] - $pricenow;
 
-            echo "Направление треллинга: ".$NapravlenieFIX."<br>";
+            echo "Направление треллинга: ".$FLOW['napravlenie']."<br>";
             echo "ОБЩАЯ ДЕЛЬТА: ".$globaldelta."<br>";
 
 
@@ -473,7 +360,7 @@ class KonorController extends AppController {
             // Проверяем в треллинге мы или нет
             if ($globaldelta > $this->trellingBEGIN)
             {
-                $TRALLINGSTATUS = $this->TrallingControl($FLOW, $NapravlenieFIX, $pricenow);
+                $TRALLINGSTATUS = $this->TrallingControl($FLOW, $FLOW['napravlenie'], $pricenow);
             }
 
             echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
@@ -505,14 +392,12 @@ class KonorController extends AppController {
         if ($FLOW['trallingstat'] == TRUE)
         {
 
-            $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
 
-            $pricenow = $this->GetPriceSide($this->symbol, $NapravlenieFIX);
+            $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlenie']);
 
             if ($FLOW['limitid'] == NULL){
 
                 echo "<font color='#8b0000'> Выставляем ЛИМИТНИК на ТРЕЛЛИНГ </font><br>";
-                $FLOW['napravlenie'] = $NapravlenieFIX;
                 $order = $this->CreateFirstOrder($FLOW, $pricenow, true);
                 show($order);
 
@@ -530,7 +415,7 @@ class KonorController extends AppController {
 
             // ЕСЛИ ЛИМИТНИК НЕ ОТКУПИЛСЯ!
             if ($this->OrderControl($OrderREST) === FALSE){
-                $FLOW['pointer'] = $NapravlenieFIX;
+                $FLOW['pointer'] = $FLOW['napravlenie'];
                 $this->LimitFalse($FLOW, $OrderREST, $pricenow);
                 return true;
             }
@@ -564,76 +449,75 @@ class KonorController extends AppController {
 
         echo "<b><font color='#663399'>Проводим скоринг...</font></b><br>";
 
+
         $otklonenie = 0;
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
-        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 9);
+        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 5);
         $MaVAL = GetMA($this->KLINES30M);
         //  show($MaVAL);
 
+        // БАЗОВЫЙ СКОРИНГ
+        $SCORING = SCORING($this->KLINES30M, $pricenow);
+
+
+        if ($SCORING['VOL'] > $this->limitmoneta) return false; // Фильтр на объем торгов
 
         $otklonenie = $pricenow - $MaVAL;
-        if ($pricenow < $MaVAL) $otklonenie = $MaVAL - $pricenow;
 
-        echo "Отклонение по МА: ".$otklonenie."<br>";
+        //     echo "Отклонение по МА: ".$otklonenie."<br>";
 
-        if ($otklonenie < $this->DeltaMA) return true;
+        // Проверка на точку входа
+        if ($otklonenie > 0 && $otklonenie < $this->DeltaMALUFT) return false;
+        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMALUFT) return false;
+
+
+        if ($otklonenie > 0 && $otklonenie < $this->DeltaMA) return "long";
+        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMA) return "short";
+
+
 
         return false;
 
     }
 
 
-    private function GetNapravlenie($globaldelta, $SCRIPT)
+    private function GetNapravlenie($SCRIPT)
     {
 
         // Получение всех потоков
         $FLOWS = $this->GetFlowBD($SCRIPT);
 
-
-        // СЧИТАЕМ КОЛ-ВО НАПРАВЛЕНИЙ
-        $countlong = 0;
-        $countshort = 0;
-        foreach ($FLOWS as $key=>$FLOW)
-        {
-            if ($FLOW['napravlenie'] == "long") $countlong = $countlong + 1;
-            if ($FLOW['napravlenie'] == "short") $countshort = $countshort + 1;
-        }
+        $LASTFLOW = $this->GetLastFlowBD($FLOWS, $SCRIPT);
 
 
+        $SCORING = $this->CheckSCORING();
 
-        // Треллинг успешно прошел на ЛОНГ. Проверяем есть ли открытый поток лонга. Если есть, то не открываем направление
-        if (abs($globaldelta) >= $this->trellingBEGIN)
+
+        if ($SCORING == "long")
         {
             foreach ($FLOWS as $key=>$FLOW)
             {
-                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "long") break;
+                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "long") break; // Если есть открытый лонг, то завершаем
             }
 
-            // Если кол-во потоков не одинаковое, то запрещаем
-            if ($countlong < $this->maxflow/2) return "long";
-
+            if ($LASTFLOW == false) return "long";
+            if ($LASTFLOW == "short")  return "long"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
 
         }
 
 
-
-        // Треллинг успешно прошел ШОРТ. Если уже есть открытый шорт, то не открываем его
-        if (abs($globaldelta) > $this->trellingBEGIN)
+        if ($SCORING == "short")
         {
             foreach ($FLOWS as $key=>$FLOW)
             {
-                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break;
+                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break; // Если есть открытый шорт
             }
 
-            // Если кол-во потоков не одинаковое, то запрещаем
-            if ($countshort < $this->maxflow/2)   return "short";
-
-
+            if ($LASTFLOW == false) return "short";
+            if ($LASTFLOW == "long")  return "short"; // Открываем есть поток, то проверяем, чтобы последний был противоположный
 
         }
-
-
 
 
         return false;
@@ -670,15 +554,13 @@ class KonorController extends AppController {
     {
         $dollar = 0;
 
-        $NapravlenieFIX = ($FLOW['napravlenie'] == 'long') ? 'short' : 'long';
-        // Цена захода
 
-        if ($NapravlenieFIX == "long")
+        if ($FLOW['napravlenie'] == "long")
         {
-            $enter = $FLOW['fixstep1'];
+            $enter = $FLOW['enterprice'];
             $pexit = $OrderREST['price'];
 
-            if ($STOP == false) $delta = changemet($enter, $pexit);
+            if ($STOP == false) $delta = changemet($enter, $pexit) + 0.05;
             if ($STOP == true)
             {
                 $pexit = $OrderREST['last_exec_price'];
@@ -689,9 +571,9 @@ class KonorController extends AppController {
             $dollar = ($OrderREST['last_exec_price']/100)*$delta*$OrderREST['qty'];
         }
 
-        if ($NapravlenieFIX == "short")
+        if ($FLOW['napravlenie'] == "short")
         {
-            $enter = $FLOW['fixstep1'];
+            $enter = $FLOW['enterprice'];
             $pexit = $OrderREST['price'];
 
             if ($STOP == false) $delta = changemet($pexit, $enter ) + 0.05;
@@ -708,11 +590,10 @@ class KonorController extends AppController {
 
         $MASS = [
             'flowid' => $FLOW['id'],
-            'napravlenie1' => $FLOW['napravlenie'],
-            'napravlenie2' => $NapravlenieFIX,
+            'napravlenie' => $FLOW['napravlenie'],
             'date' => date("d-m-Y"),
             'timeexit' => date("H:i:s"),
-            'enter' => $FLOW['fixstep1'],
+            'enter' => $FLOW['enterprice'],
             'exit' => $pexit,
             'amount' => $OrderREST['qty'],
             'dollar' => $dollar,
@@ -736,12 +617,12 @@ class KonorController extends AppController {
 
     }
 
-    private function CreateStop($FLOW, $NapravlenieFIX,  $StopPrice)
+    private function CreateStop($FLOW, $Napravlenie,  $StopPrice)
     {
 
 
-        if ($NapravlenieFIX == "long") $bp = $FLOW['fixstep1'] + $this->stoploss*2;
-        if ($NapravlenieFIX == "short") $bp = $FLOW['fixstep1'] - $this->stoploss*2;
+        if ($Napravlenie == "long") $bp = $FLOW['enterprice'] + $this->stoploss*2;
+        if ($Napravlenie == "short") $bp = $FLOW['enterprice'] - $this->stoploss*2;
 
         $params = [
             'stop_px' => $StopPrice, // trigger $price, required for conditional orders
@@ -750,7 +631,7 @@ class KonorController extends AppController {
             'reduce_only' => true,
         ];
 
-        $inverted_side = ($NapravlenieFIX == 'long') ? 'Sell' : 'Buy';
+        $inverted_side = ($Napravlenie == 'long') ? 'Sell' : 'Buy';
 
         show($inverted_side);
 
@@ -1233,6 +1114,26 @@ class KonorController extends AppController {
         return $flows;
     }
 
+
+    private function GetLastFlowBD($FLOWS, $SCRIPT)
+    {
+
+        $countflows = count($FLOWS);
+        if ($countflows == 1) return false;
+
+
+        $LastFLOWS = R::findAll("flows", 'WHERE scriptid =? ORDER BY id DESC LIMIT 2', [$SCRIPT['id']]);
+
+        $count = 0;
+        foreach ( $LastFLOWS as $lastFLOW)
+        {
+            if ($count == 0) $LF = $lastFLOW;
+
+        }
+
+        return $LF['napravlenie'];
+
+    }
 
 
 

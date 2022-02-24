@@ -25,22 +25,19 @@ class FlowController extends AppController {
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
     private $lot = 0.001; // Базовый заход
-    private $trellingBEGIN = 60; // Через сколько пунктов начинается треллинг
+    private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 300; // Коридор захода в позицию по МА
-    private $DeltaMALUFT = 50; // Проверка на точку входа
+    private $DeltaMA = 200; // Коридор захода в позицию по МА
+    private $DeltaMALUFT = 0; // Проверка на точку входа
 
-    private $limitmoneta = 3000; // Скоринг монеты на объемы
+    private $stoploss = 1500; // Стоп лосс в пунктах актива
 
-    private $stoploss = 2000; // Стоп лосс в пунктах актива
-
-    private $urovenbreakzone = 100; // в шагах
-
-
-
+    private $urovenbreakzone = 200; // в шагах
 
     private $maxflow = 8;
+
+    private $limitmoneta = 3000; // Скоринг монеты на объемы
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -161,12 +158,8 @@ class FlowController extends AppController {
 
         if ($counwork < 1 && $countflows < $this->maxflow)
         {
-
                 echo "<font color='green'> Можем создать еще 1 поток!!! </font><br>";
-
                      $this->AddFlow($SCRIPT);
-
-
         }
 
 
@@ -470,15 +463,15 @@ class FlowController extends AppController {
 
         $otklonenie = $pricenow - $MaVAL;
 
-        echo "Отклонение по МА: ".$otklonenie."<br>";
+   //     echo "Отклонение по МА: ".$otklonenie."<br>";
 
         // Проверка на точку входа
         if ($otklonenie > 0 && $otklonenie < $this->DeltaMALUFT) return false;
         if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMALUFT) return false;
 
 
-        if ($otklonenie > 0 && $otklonenie < $this->DeltaMA) return "short";
-        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMA) return "long";
+        if ($otklonenie > 0 && $otklonenie < $this->DeltaMA) return "long";
+        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMA) return "short";
 
 
 
@@ -516,7 +509,7 @@ class FlowController extends AppController {
         {
             foreach ($FLOWS as $key=>$FLOW)
             {
-                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break; // Если есть открытый лонг
+                if ($FLOW['breakzone'] == 0 && $FLOW['napravlenie'] == "short") break; // Если есть открытый шорт
             }
 
             if ($LASTFLOW == false) return "short";
