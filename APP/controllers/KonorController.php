@@ -32,10 +32,10 @@ class KonorController extends AppController {
     private $DeltaMALUFT = 0; // Проверка на точку входа
 
 
-
+ 
     private $stoploss = 1500; // Стоп лосс в пунктах актива
 
-    private $urovenbreakzone = 200; // в шагах
+    private $urovenbreakzone = 400; // в шагах
 
     private $limitmoneta = 3000; // Скоринг монеты на объемы
 

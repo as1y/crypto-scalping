@@ -33,7 +33,7 @@ class FlowController extends AppController {
 
     private $stoploss = 1500; // Стоп лосс в пунктах актива
 
-    private $urovenbreakzone = 200; // в шагах
+    private $urovenbreakzone = 300; // в шагах
 
     private $maxflow = 8;
 
