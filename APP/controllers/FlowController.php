@@ -22,29 +22,29 @@ class FlowController extends AppController {
     public $emailex  = "raskrutkaweb@yandex.ru"; // Сумма захода USD
 
 
-    // ПАРАМЕТРЫ СТРАТЕГИИ
+    // РАБОЧИЕ ПАРАМЕТРЫ
 
-    private $lot = 0.001; // Базовый заход
     private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
     private $DeltaMA = 500; // Коридор захода в позицию по МА
-
     private $BreakZoneTP = 100; // в шагах
-
     private $BreakZoneLOSE = 500; // в шагах
-
-
-
-    private $MAval = 10;
-
-
     private $stoploss = 2000; // Стоп лосс в пунктах актива
 
 
-    private $maxflow = 10;
 
+
+    // Настроечные параметры
+    private $MAval = 10;
+    private $lot = 0.001; // Базовый заход
+    private $maxflow = 10;
     private $limitmoneta = 3000; // Скоринг монеты на объемы
+
+
+
+
+
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -156,20 +156,14 @@ class FlowController extends AppController {
 
         }
 
-        echo "<b>Всего потоков: </b>".$countflows."<br>";
-        echo "<b>Кол-во зависших потоков: </b>".$counbreak."<br>";
-        echo "<b>Кол-во РАБОЧИХ потоков: </b>".$counwork."<br>";
-
+        $SCORING = $this->CheckSCORING();
+        if ($SCORING == false) return false;
 
         if ($counwork < 1 && $countflows < $this->maxflow)
         {
                 echo "<font color='green'> Можем создать еще 1 поток!!! </font><br>";
                      $this->AddFlow($SCRIPT);
         }
-
-
-
-            echo "<hr>";
 
             return true;
     }
@@ -1139,6 +1133,7 @@ class FlowController extends AppController {
 
         $LastFLOWS = R::findAll("flows", 'WHERE scriptid =? ORDER BY id DESC LIMIT 2', [$SCRIPT['id']]);
 
+        $LF = [];
         $count = 0;
         foreach ( $LastFLOWS as $lastFLOW)
         {
@@ -1146,7 +1141,7 @@ class FlowController extends AppController {
 
         }
 
-        return $LF['napravlenie'];
+        return $LF;
 
     }
 
