@@ -28,14 +28,21 @@ class FlowController extends AppController {
     private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 200; // Коридор захода в позицию по МА
-    private $DeltaMALUFT = 0; // Проверка на точку входа
+    private $DeltaMA = 500; // Коридор захода в позицию по МА
 
-    private $stoploss = 1500; // Стоп лосс в пунктах актива
+    private $BreakZoneTP = 100; // в шагах
 
-    private $urovenbreakzone = 300; // в шагах
+    private $BreakZoneLOSE = 500; // в шагах
 
-    private $maxflow = 8;
+
+
+    private $MAval = 10;
+
+
+    private $stoploss = 2000; // Стоп лосс в пунктах актива
+
+
+    private $maxflow = 10;
 
     private $limitmoneta = 3000; // Скоринг монеты на объемы
 
@@ -44,9 +51,7 @@ class FlowController extends AppController {
     private $ORDERBOOK = [];
     private $EXCHANGECCXT = [];
     private $BALANCE = [];
-    private $KLINES15M = [];
     private $KLINES30M = [];
-    private $SCORING = [];
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -225,6 +230,9 @@ class FlowController extends AppController {
             }
 
             echo "Базовый лимитник пустой. Выставляем<br>";
+
+
+
             $FLOW['pointer'] = $Napravlenie;
             $order = $this->CreateFirstOrder($FLOW, $pricenow);
             $ARRCHANGE = [];
@@ -451,7 +459,7 @@ class FlowController extends AppController {
         $otklonenie = 0;
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
-        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 5);
+        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, $this->MAval);
         $MaVAL = GetMA($this->KLINES30M);
         //  show($MaVAL);
 
@@ -466,8 +474,8 @@ class FlowController extends AppController {
    //     echo "Отклонение по МА: ".$otklonenie."<br>";
 
         // Проверка на точку входа
-        if ($otklonenie > 0 && $otklonenie < $this->DeltaMALUFT) return false;
-        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMALUFT) return false;
+    //    if ($otklonenie > 0 && $otklonenie < $this->DeltaMALUFT) return false;
+    //    if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMALUFT) return false;
 
 
         if ($otklonenie > 0 && $otklonenie < $this->DeltaMA) return "long";
@@ -488,10 +496,17 @@ class FlowController extends AppController {
 
         $LASTFLOW = $this->GetLastFlowBD($FLOWS, $SCRIPT);
 
-
         $SCORING = $this->CheckSCORING();
 
+        if ($LASTFLOW == false) return $SCORING;
 
+        if ($SCORING != $LASTFLOW) return $LASTFLOW;
+
+        return $SCORING;
+
+
+
+        /*
         if ($SCORING == "long")
         {
             foreach ($FLOWS as $key=>$FLOW)
@@ -517,8 +532,10 @@ class FlowController extends AppController {
 
         }
 
-
         return false;
+
+*/
+
 
 
     }
@@ -539,9 +556,9 @@ class FlowController extends AppController {
 
      //   if ($rabotapotoka > $this->timebreakzone) return true;
 
-        if ($globaldelta*(-1) > $this->urovenbreakzone) return true;
+        if ($globaldelta > $this->BreakZoneTP) return 1;
 
-
+        if ($globaldelta*(-1) > $this->BreakZoneLOSE) return 2;
 
 
         return false;

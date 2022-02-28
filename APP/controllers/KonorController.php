@@ -24,22 +24,22 @@ class KonorController extends AppController {
 
     // ПАРАМЕТРЫ СТРАТЕГИИ
 
-    private $lot = 0.03; // Базовый заход
+    private $lot = 0.02; // Базовый заход
     private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
-    private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
+    private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 200; // Коридор захода в позицию по МА
+    private $DeltaMA = 100; // Коридор захода в позицию по МА
     private $DeltaMALUFT = 0; // Проверка на точку входа
 
+    private $MAval = 10;
 
- 
     private $stoploss = 1500; // Стоп лосс в пунктах актива
 
-    private $urovenbreakzone = 400; // в шагах
+    private $urovenbreakzone = 300; // в шагах
 
     private $limitmoneta = 3000; // Скоринг монеты на объемы
 
-    private $maxflow = 6;
+    private $maxflow = 10;
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -453,7 +453,7 @@ class KonorController extends AppController {
         $otklonenie = 0;
         $pricenow = $this->GetPriceSide($this->symbol, "long");
 
-        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, 5);
+        $this->KLINES30M = $this->EXCHANGECCXT->fetch_ohlcv($this->symbol, '30m', null, $this->MAval);
         $MaVAL = GetMA($this->KLINES30M);
         //  show($MaVAL);
 
