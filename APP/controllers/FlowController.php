@@ -494,9 +494,19 @@ class FlowController extends AppController {
 
         if ($LASTFLOW == false) return $SCORING;
 
-        if ($SCORING != $LASTFLOW) return $LASTFLOW;
 
-        return $SCORING;
+        if ($LASTFLOW['breakzone'] == 1)
+        {
+            if ($SCORING == $LASTFLOW['napravlenie']) return $SCORING;
+        }
+
+        if ($LASTFLOW['breakzone'] == 2)
+        {
+            if ($SCORING != $LASTFLOW['napravlenie']) return $SCORING;
+        }
+
+
+        return false;
 
 
 
