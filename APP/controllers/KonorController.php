@@ -22,33 +22,36 @@ class KonorController extends AppController {
     public $emailex  = "as1y@yandex.ru"; // Сумма захода USD
 
 
-    // ПАРАМЕТРЫ СТРАТЕГИИ
+    // РАБОЧИЕ ПАРАМЕТРЫ
 
-    private $lot = 0.02; // Базовый заход
     private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 100; // Коридор захода в позицию по МА
-    private $DeltaMALUFT = 0; // Проверка на точку входа
+    private $DeltaMA = 500; // Коридор захода в позицию по МА
+    private $BreakZoneTP = 100; // в шагах
+    private $BreakZoneLOSE = 500; // в шагах
+    private $stoploss = 2000; // Стоп лосс в пунктах актива
 
+
+
+
+    // Настроечные параметры
+    private $lot = 0.003; // Базовый заход
     private $MAval = 10;
-
-    private $stoploss = 1500; // Стоп лосс в пунктах актива
-
-    private $urovenbreakzone = 300; // в шагах
-
+    private $maxflow = 10;
     private $limitmoneta = 3000; // Скоринг монеты на объемы
 
-    private $maxflow = 10;
+
+
+
+
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
     private $ORDERBOOK = [];
     private $EXCHANGECCXT = [];
     private $BALANCE = [];
-    private $KLINES15M = [];
     private $KLINES30M = [];
-    private $SCORING = [];
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -153,20 +156,14 @@ class KonorController extends AppController {
 
         }
 
-        echo "<b>Всего потоков: </b>".$countflows."<br>";
-        echo "<b>Кол-во зависших потоков: </b>".$counbreak."<br>";
-        echo "<b>Кол-во РАБОЧИХ потоков: </b>".$counwork."<br>";
-
+        $SCORING = $this->CheckSCORING();
+        if ($SCORING == false) return false;
 
         if ($counwork < 1 && $countflows < $this->maxflow)
         {
             echo "<font color='green'> Можем создать еще 1 поток!!! </font><br>";
             $this->AddFlow($SCRIPT);
         }
-
-
-
-        echo "<hr>";
 
         return true;
     }
@@ -227,6 +224,9 @@ class KonorController extends AppController {
             }
 
             echo "Базовый лимитник пустой. Выставляем<br>";
+
+
+
             $FLOW['pointer'] = $Napravlenie;
             $order = $this->CreateFirstOrder($FLOW, $pricenow);
             $ARRCHANGE = [];
@@ -465,11 +465,11 @@ class KonorController extends AppController {
 
         $otklonenie = $pricenow - $MaVAL;
 
-        //     echo "Отклонение по МА: ".$otklonenie."<br>";
+            echo "Отклонение по МА: ".$otklonenie."<br>";
 
         // Проверка на точку входа
-        if ($otklonenie > 0 && $otklonenie < $this->DeltaMALUFT) return false;
-        if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMALUFT) return false;
+        //    if ($otklonenie > 0 && $otklonenie < $this->DeltaMALUFT) return false;
+        //    if ($otklonenie < 0 && $otklonenie*(-1) < $this->DeltaMALUFT) return false;
 
 
         if ($otklonenie > 0 && $otklonenie < $this->DeltaMA) return "long";
@@ -490,10 +490,48 @@ class KonorController extends AppController {
 
         $LASTFLOW = $this->GetLastFlowBD($FLOWS, $SCRIPT);
 
-
         $SCORING = $this->CheckSCORING();
 
+        if ($LASTFLOW == false) return $SCORING;
 
+        if ($SCORING == "long")
+        {
+            if($LASTFLOW['breakzone'] == 0 && $LASTFLOW['napravlenie']  == "short") return "long";
+            if($LASTFLOW['breakzone'] == 1 && $LASTFLOW['napravlenie']  == "long") return "long";
+            if($LASTFLOW['breakzone'] == 2) return "long";
+
+
+        }
+
+
+        if ($SCORING == "short")
+        {
+
+            if($LASTFLOW['breakzone'] == 0 && $LASTFLOW['napravlenie']  == "long") return "short";
+            if($LASTFLOW['breakzone'] == 1 && $LASTFLOW['napravlenie']  == "short") return "short";
+            if($LASTFLOW['breakzone'] == 2) return "short";
+
+
+        }
+
+
+
+        if ($LASTFLOW['breakzone'] == 1)
+        {
+            if ($SCORING == $LASTFLOW['napravlenie']) return $SCORING;
+        }
+
+        if ($LASTFLOW['breakzone'] == 2)
+        {
+            if ($SCORING != $LASTFLOW['napravlenie']) return $SCORING;
+        }
+
+
+        return false;
+
+
+
+        /*
         if ($SCORING == "long")
         {
             foreach ($FLOWS as $key=>$FLOW)
@@ -519,8 +557,10 @@ class KonorController extends AppController {
 
         }
 
-
         return false;
+
+*/
+
 
 
     }
@@ -541,9 +581,9 @@ class KonorController extends AppController {
 
         //   if ($rabotapotoka > $this->timebreakzone) return true;
 
-        if ($globaldelta*(-1) > $this->urovenbreakzone) return true;
+        if ($globaldelta > $this->BreakZoneTP) return 1;
 
-
+        if ($globaldelta*(-1) > $this->BreakZoneLOSE) return 2;
 
 
         return false;
@@ -1124,6 +1164,7 @@ class KonorController extends AppController {
 
         $LastFLOWS = R::findAll("flows", 'WHERE scriptid =? ORDER BY id DESC LIMIT 2', [$SCRIPT['id']]);
 
+        $LF = [];
         $count = 0;
         foreach ( $LastFLOWS as $lastFLOW)
         {
@@ -1131,7 +1172,7 @@ class KonorController extends AppController {
 
         }
 
-        return $LF['napravlenie'];
+        return $LF;
 
     }
 
