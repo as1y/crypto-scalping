@@ -319,7 +319,6 @@ class KonorController extends AppController {
 
 
 
-            // Определение направления
 
             $pricenow = $this->GetPriceSide($this->symbol, $FLOW['napravlenie']);
 
@@ -337,30 +336,31 @@ class KonorController extends AppController {
 
             // ПРОВЕРКА НА БРЕКЗОНУ
 
-            $functionzone = $this->CheckBreakZone($FLOW, $globaldelta);
 
-            if ($functionzone == false)
+            echo "<b><font color='#8b0000'>БрекЗона по функции:</font></b>".$FLOW['breakzone']."<br>";
+
+
+
+       //     $functionzone = $this->CheckBreakZone($globaldelta);
+
+            if ($globaldelta*(-1) > $this->BreakZoneLOSE)
             {
-                echo "<b><font color='#8b0000'>БрекЗона по функции:</font></b>".$functionzone."<br>";
+                if ($FLOW['breakzone'] != 2)
+                {
+                    $ARRCHANGE = [];
+                    $ARRCHANGE['breakzone'] = 2;
+                    $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+                }
+
+
             }
-
-
-
-            // Смена БрекЗоны
-            if ($FLOW['breakzone'] == false && $functionzone == true)
-            {
-                $ARRCHANGE = [];
-                $ARRCHANGE['breakzone'] = $functionzone;
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-            }
-
-
 
             $TRALLINGSTATUS = false;
             // Проверяем в треллинге мы или нет
             if ($globaldelta > $this->trellingBEGIN)
             {
                 $TRALLINGSTATUS = $this->TrallingControl($FLOW, $FLOW['napravlenie'], $pricenow);
+
             }
 
             echo "<b>СТАТУСЫ ТРЕЛЛИНГА</b><br>";
@@ -378,6 +378,7 @@ class KonorController extends AppController {
 
                 $ARRCHANGE = [];
                 $ARRCHANGE['trallingstat'] = TRUE;
+                $ARRCHANGE['breakzone'] = 1;
                 $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
 
             }
@@ -597,15 +598,15 @@ class KonorController extends AppController {
 
 
 
-    private function CheckBreakZone($FLOW, $globaldelta)
+    private function CheckBreakZone($globaldelta)
     {
 
         // Проверка на время
-        $rabotapotoka = time() - $FLOW['stamp'];
-        $rabotapotoka = $rabotapotoka/60;
-        $rabotapotoka = round($rabotapotoka);
+     //   $rabotapotoka = time() - $FLOW['stamp'];
+     //   $rabotapotoka = $rabotapotoka/60;
+     //   $rabotapotoka = round($rabotapotoka);
 
-        echo "Работа потока в минутах:".$rabotapotoka."<br>";
+      //  echo "Работа потока в минутах:".$rabotapotoka."<br>";
 
 
         //   if ($rabotapotoka > $this->timebreakzone) return true;
