@@ -62,16 +62,10 @@ class StatController extends AppController {
 
         $Balyesterday = 7;
 
-        echo "112БАЛАНС ВЧЕРА:<br>";
-
-
-
+        echo "АККАУНТ 1:<br>";
         echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE['total']."<br>";
         echo "<hr>";
-  
-        $deltatodat = changemet($Balyesterday, $this->BALANCE['total']);
 
-        echo "<b>ПРОФИТ СЕГОДНЯ </b>".$deltatodat." %<br>";
 
 
 

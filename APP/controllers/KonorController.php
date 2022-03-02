@@ -25,7 +25,7 @@ class KonorController extends AppController {
     // РАБОЧИЕ ПАРАМЕТРЫ
 
     private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
-    private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
+    private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
     private $DeltaMA = 1000; // Коридор захода в позицию по МА
     private $BreakZoneTP = 100; // в шагах
