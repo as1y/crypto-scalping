@@ -27,7 +27,7 @@ class KonorController extends AppController {
     private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 20; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 500; // Коридор захода в позицию по МА
+    private $DeltaMA = 1000; // Коридор захода в позицию по МА
     private $BreakZoneTP = 100; // в шагах
     private $BreakZoneLOSE = 500; // в шагах
     private $stoploss = 2000; // Стоп лосс в пунктах актива
@@ -486,11 +486,40 @@ class KonorController extends AppController {
     {
 
         // Получение всех потоков
-        $FLOWS = $this->GetFlowBD($SCRIPT);
 
+        $FLOWS = $this->GetFlowBD($SCRIPT);
+        $SCORING = $this->CheckSCORING();
+
+        $countflows = count($FLOWS);
+        if ($countflows == 1) return $SCORING;
+
+        foreach ($FLOWS as $FLOW)
+        {
+            if ($SCORING == "long")
+            {
+                if ($FLOW['breakzone'] == 0) return false;
+                if ($FLOW['breakzone'] == 1 && $FLOW['napravlenie'] == "long") return "long";
+                if ($FLOW['breakzone'] == 2 && $FLOW['napravlenie'] == "short") return "long";
+            }
+
+            if ($SCORING == "short")
+            {
+                if ($FLOW['breakzone'] == 0) return false;
+                if ($FLOW['breakzone'] == 1 && $FLOW['napravlenie'] == "short") return "short";
+                if ($FLOW['breakzone'] == 2 && $FLOW['napravlenie'] == "long") return "short";
+            }
+
+
+
+        }
+
+
+
+        return false;
+
+        /*
         $LASTFLOW = $this->GetLastFlowBD($FLOWS, $SCRIPT);
 
-        $SCORING = $this->CheckSCORING();
 
         if ($LASTFLOW == false) return $SCORING;
 
@@ -529,7 +558,7 @@ class KonorController extends AppController {
 
         return false;
 
-
+*/
 
         /*
         if ($SCORING == "long")
