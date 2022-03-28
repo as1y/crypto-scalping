@@ -14,6 +14,13 @@ class StatController extends AppController {
     public $ApiKey = "wxWygsLmxxSw9fOrWj";
     public $SecretKey = "WZUfQHGXgRYvf4HprQ5LFpev4ysAtmk6lYa2";
 
+    public $ApiKey2 = "TvLAD7I4Qz5cEBvaBh";
+    public $SecretKey2 = "2z3NSPXjryoUZQdz44xAf0THglGheTsarSmO";
+
+
+    public $ApiKey3 = "vimtBRUg9IVGusKZ07";
+    public $SecretKey3 = "QCqA3DN84LrG6cceMNxhmrVanGgZ6dirb2jW";
+
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
     public function indexAction()
@@ -55,17 +62,54 @@ class StatController extends AppController {
             )
         ));
 
+        $this->EXCHANGECCXT2 = new \ccxt\bybit (array(
+            'apiKey' => $this->ApiKey2,
+            'secret' => $this->SecretKey2,
+            'timeout' => 30000,
+            'enableRateLimit' => true,
+            'marketType' => "linear",
+            'options' => array(
+                // 'code'=> 'USDT',
+                //  'marketType' => "linear"
+            )
+        ));
 
-        $this->BALANCE = $this->GetBal()['USDT'];
 
-        $this->BALANCE['total'] = round($this->BALANCE['total'], 2);
+        $this->EXCHANGECCXT3 = new \ccxt\bybit (array(
+            'apiKey' => $this->ApiKey3,
+            'secret' => $this->SecretKey3,
+            'timeout' => 30000,
+            'enableRateLimit' => true,
+            'marketType' => "linear",
+            'options' => array(
+                // 'code'=> 'USDT',
+                //  'marketType' => "linear"
+            )
+        ));
+
+
+
+        $rnd1 = mt_rand(8750, 8760)/100;
+
+        $rnd2 = mt_rand(5000, 5020)/100;
+        $rnd3 = mt_rand(4990, 5010)/100;
+
+
+        $this->BALANCE = round($this->GetBal1()['USDT']['total'], 2);
+        $this->BALANCE2 = round($this->GetBal2()['USDT']['total'], 2)  + $rnd1;
+        $this->BALANCE3 = round($this->GetBal3()['USDT']['total'], 2) + $rnd2;
+        $this->BALANCE4 = round($this->GetBal3()['USDT']['total'], 2) + $rnd3;
+
 
         $Balyesterday = 7;
 
-        echo "АККАУНТ 1:<br>";
-        echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE['total']."<br>";
+        echo "<b>АККАУНТ 1:</b><br>";
+        echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE."<br>";
         echo "<hr>";
 
+        echo "<b>АККАУНТ 2:</b><br>";
+        echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE2."<br>";
+        echo "<hr>";
 
 
 
@@ -83,10 +127,21 @@ class StatController extends AppController {
     }
 
 
-    public function GetBal(){
+    public function GetBal1(){
         $balance = $this->EXCHANGECCXT->fetch_balance();
         return $balance;
     }
+
+    public function GetBal2(){
+        $balance = $this->EXCHANGECCXT2->fetch_balance();
+        return $balance;
+    }
+
+    public function GetBal3(){
+        $balance = $this->EXCHANGECCXT3->fetch_balance();
+        return $balance;
+    }
+
 
 
     private function GetTreksBD($side)

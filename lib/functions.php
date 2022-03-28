@@ -170,12 +170,13 @@ function fCURL($url, $PARAMS = [], $headers = []){
         $url = $url."?".http_build_query($PARAMS['GET']);
     }
 
+    /*
     if ($headers != []){
         curl_setopt( $ch, CURLOPT_HTTPHEADER, $headers );
     }else{
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json-patch+json'));
     }
-
+    */
 
 
     curl_setopt($ch, CURLOPT_URL, $url);
@@ -186,9 +187,9 @@ function fCURL($url, $PARAMS = [], $headers = []){
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 
 
-    //  curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
-//    curl_setopt($ch, CURLOPT_COOKIEFILE, $_SERVER['DOCUMENT_ROOT'].'/cookie.txt');
-//    curl_setopt($ch, CURLOPT_COOKIEJAR, $_SERVER['DOCUMENT_ROOT'].'/cookie.txt');
+      curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
+    curl_setopt($ch, CURLOPT_COOKIEFILE, $_SERVER['DOCUMENT_ROOT'].'/cookie.txt');
+    curl_setopt($ch, CURLOPT_COOKIEJAR, $_SERVER['DOCUMENT_ROOT'].'/cookie.txt');
 
 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -220,8 +221,8 @@ function fCURL($url, $PARAMS = [], $headers = []){
 
     curl_close($ch);
 
-    //  $resultJson = $result;
-    $resultJson = json_decode($result, TRUE);
+     $resultJson = $result;
+   // $resultJson = json_decode($result, TRUE);
 
 
     return $resultJson;

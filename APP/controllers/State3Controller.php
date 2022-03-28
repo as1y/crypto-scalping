@@ -6,36 +6,37 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class FlowController extends AppController {
+class State3Controller extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
-    public $ApiKey = "TvLAD7I4Qz5cEBvaBh";
-    public $SecretKey = "2z3NSPXjryoUZQdz44xAf0THglGheTsarSmO";
+    public $ApiKey = "vimtBRUg9IVGusKZ07";
+    public $SecretKey = "QCqA3DN84LrG6cceMNxhmrVanGgZ6dirb2jW";
 
 
     // Переменные для стратегии
     public $leverege = 90;
     public $symbol = "BTC/USDT";
     public $Basestep = 0.5;
-    public $emailex  = "raskrutkaweb@yandex.ru"; // Сумма захода USD
+    public $emailex  = "again.kvarc@yandex.ru"; // Сумма захода USD
 
 
     // РАБОЧИЕ ПАРАМЕТРЫ
-    private $trellingBEGIN = 50; // Через сколько пунктов начинается треллинг
+
+    private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
     private $DeltaMA = 1000; // Коридор захода в позицию по МА
-    private $BreakZoneTP = 50; // в шагах
-    private $BreakZoneLOSE = 100; // в шагах
+    private $BreakZoneTP = 100; // в шагах
+    private $BreakZoneLOSE = 500; // в шагах
     private $stoploss = 2000; // Стоп лосс в пунктах актива
 
 
 
 
     // Настроечные параметры
-    private $lot = 0.001; // Базовый заход
+    private $lot = 0.003; // Базовый заход
     private $MAval = 10;
     private $maxflow = 10;
     private $limitmoneta = 3000; // Скоринг монеты на объемы
@@ -225,27 +226,6 @@ class FlowController extends AppController {
             echo "Базовый лимитник пустой. Выставляем<br>";
 
 
-            /*
-            // Увеличение лотности в зависимости от кол-ва захода
-            $COUNT = $this->GetFlowNapravlenie($SCRIPT);
-            if ($Napravlenie == "long" && $COUNT['long'] > 1)
-            {
-                $FLOW['lot'] = $this->lot*$COUNT['long'];
-                $ARRCHANGE = [];
-                $ARRCHANGE['lot'] = $this->lot*$COUNT['long'];
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-            }
-
-            if ($Napravlenie == "short" && $COUNT['short'] > 1)
-            {
-                $FLOW['lot'] = $this->lot*$COUNT['short'];
-                $ARRCHANGE = [];
-                $ARRCHANGE['lot'] = $this->lot*$COUNT['short'];
-                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
-            }
-            // Увеличение лотности в зависимости от кол-ва захода
-            */
-
 
             $FLOW['pointer'] = $Napravlenie;
             $order = $this->CreateFirstOrder($FLOW, $pricenow);
@@ -379,7 +359,7 @@ class FlowController extends AppController {
             // Проверяем в треллинге мы или нет
             if ($globaldelta > $this->trellingBEGIN)
             {
-                $TRALLINGSTATUS = $this->TrallingControl($FLOW, $FLOW['napravlenie'], $pricenow, $SCRIPT);
+                $TRALLINGSTATUS = $this->TrallingControl($FLOW, $FLOW['napravlenie'], $pricenow);
 
             }
 
@@ -832,13 +812,11 @@ class FlowController extends AppController {
 
 
 
-    private function TrallingControl($FLOW, $Napravlenie, $pricenow, $SCRIPT){
+    private function TrallingControl($FLOW, $Napravlenie, $pricenow){
 
         if ($Napravlenie == NULL) return false;
 
         $delta = 0;
-        $COUNT = $this->GetFlowNapravlenie($SCRIPT);
-
 
         if ($Napravlenie == "short")
         {
@@ -859,10 +837,7 @@ class FlowController extends AppController {
             echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
             echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
 
-
-
-
-            if ($delta > $this->trellingSTEP/($COUNT['short']-1)) return true;
+            if ($delta > $this->trellingSTEP) return true;
 
         }
 
@@ -886,7 +861,7 @@ class FlowController extends AppController {
             echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
             echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
 
-            if ($delta > $this->trellingSTEP/($COUNT['long']-1)) return true;
+            if ($delta > $this->trellingSTEP) return true;
 
         }
 
@@ -935,12 +910,6 @@ class FlowController extends AppController {
 
     private function AddFlow($SCRIPT, $PARAMS = [])
     {
-
-
-
-
-
-
 
         echo "Добавляем поток! <br>";
 
@@ -1214,26 +1183,6 @@ class FlowController extends AppController {
         $flows = R::findAll("flows", 'WHERE scriptid =?', [$SCRIPT['id']]);
         return $flows;
     }
-
-
-
-    private function GetFlowNapravlenie($SCRIPT)
-    {
-
-        $COUNT['long'] = 1;
-        $COUNT['short'] = 1;
-
-        $CountLong = R::count("flows", 'WHERE scriptid =? AND napravlenie =?', [$SCRIPT['id'], "long"]);
-        $CountShort = R::count("flows", 'WHERE scriptid =? AND napravlenie =?', [$SCRIPT['id'], "short"]);
-
-        $COUNT['long'] = $COUNT['long'] + $CountLong;
-        $COUNT['short'] = $COUNT['short'] + $CountShort;
-
-
-
-        return $COUNT;
-    }
-
 
 
     private function GetLastFlowBD($FLOWS, $SCRIPT)

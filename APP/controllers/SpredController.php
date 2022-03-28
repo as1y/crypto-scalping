@@ -6,13 +6,15 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class StatController extends AppController {
+class SpredController extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
 
     public $ApiKey = "U5I2AoIrTk4gBR7XLB";
     public $SecretKey = "HUfZrWiVqUlLM65Ba8TXvQvC68kn1AabMDgE";
+
+    private $BaseKurs = 0;
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -43,48 +45,131 @@ class StatController extends AppController {
         //  show(\ccxt\Exchange::$exchanges); // print a list of all available exchange classes
 
         //Запуск CCXT
-        $this->EXCHANGECCXT = new \ccxt\bybit (array(
-            'apiKey' => $this->ApiKey,
-            'secret' => $this->SecretKey,
+        $exchange = new \ccxt\binance (array (
+          //  'verbose' => true,
             'timeout' => 30000,
-            'enableRateLimit' => true,
-            'marketType' => "linear",
-            'options' => array(
-                // 'code'=> 'USDT',
-                //  'marketType' => "linear"
-            )
         ));
 
 
-        $this->BALANCE = $this->GetBal()['USDT'];
 
-        $this->BALANCE['total'] = round($this->BALANCE['total'], 2);
 
-        $Balyesterday = 499;
-
-        echo "БАЛАНС ВЧЕРА:".$Balyesterday."<br>";
-
-        echo "ТЕКУЩИЙ БАЛАНС:".$this->BALANCE['total']."<br>";
-        echo "<hr>";
-  
-        $deltatodat = changemet($Balyesterday, $this->BALANCE['total']);
-
-        echo "<b>ПРОФИТ СЕГОДНЯ </b>".$deltatodat." %<br>";
+        $TICKERS[] = 'USDT/RUB';
+        $TICKERS[] = 'BCH/USDT';
+        $TICKERS[] = 'XRP/RUB';
+        $TICKERS[] = 'ETC/USDT';
+        $TICKERS[] = 'XMR/USDT';
+        $TICKERS[] = 'SHIB/USDT';
+        $TICKERS[] = 'MKR/USDT';
+        $TICKERS[] = 'WAVES/USDT';
 
 
 
+        show($TICKERS);
+
+        $this->BaseKurs = $exchange->fetch_ticker ("USDT/RUB")['close'];
 
 
-        // Получение ТРЕКОВ
+        foreach ($TICKERS as $TICKER)
+        {
 
-        // Получение статистики по трекам (трекхистори)
+            $binancePRICE = $this->GetBinancePrice($exchange, $TICKER);
 
-        // Чтение таблицы с историей баланса
+            $BestChangePRICE = $this->GetBestChange($TICKER);
+            $spredzahoda = 100 - $binancePRICE/$BestChangePRICE*100;
+            $spredzahoda = round($spredzahoda, 2);
+
+
+            echo "<b>СИМВОЛ:</b> ".$TICKER." <br>";
+            echo "Цена BINANCE ".$binancePRICE."<br>";
+            echo "Цена BEST ".$BestChangePRICE."<br>";
+            echo "<b> СПРЕД ВХОДА </b> ".$spredzahoda." % <br>";
+            echo "<hr>";
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 //        $this->set(compact(''));
 
     }
+
+
+
+    public function GetBinancePrice($exchange, $symbol){
+
+        $price = 0;
+
+        if ($symbol == 'USDT/RUB') $price = $exchange->fetch_ticker ("USDT/RUB")['close'];
+        if ($symbol == 'XRP/RUB') $price = $exchange->fetch_ticker ("XRP/RUB")['close'];
+
+        if ($symbol == 'BCH/USDT') $price = $exchange->fetch_ticker ("BCH/USDT")['close']*$this->BaseKurs;
+        if ($symbol == 'ETC/USDT') $price = $exchange->fetch_ticker ("ETC/USDT")['close']*$this->BaseKurs;
+        if ($symbol == 'XMR/USDT') $price = $exchange->fetch_ticker ("XMR/USDT")['close']*$this->BaseKurs;
+        if ($symbol == 'SHIB/USDT') $price = $exchange->fetch_ticker ("SHIB/USDT")['close']*$this->BaseKurs;
+        if ($symbol == 'MKR/USDT') $price = $exchange->fetch_ticker ("MKR/USDT")['close']*$this->BaseKurs;
+
+
+        if ($symbol == 'WAVES/USDT') $price = $exchange->fetch_ticker ("WAVES/USDT")['close']*$this->BaseKurs;
+
+
+        return $price;
+
+    }
+
+
+    public function GetBestChange($symbol){
+
+        $price = 0;
+
+        if ($symbol == "USDT/RUB") $price = 115.1;
+
+
+        if ($symbol == "BCH/USDT") $price = 43840;
+        if ($symbol == "ETC/USDT") $price = 5379;
+        if ($symbol == "XRP/RUB") $price = 97;
+        if ($symbol == "XMR/USDT") $price = 22817;
+        if ($symbol == "SHIB/USDT") $price = 0.0028735632;
+
+        if ($symbol == "MKR/USDT") $price = 279646;
+        if ($symbol == "WAVES/USDT") $price = 3963;
+
+
+      //  $page = fCURL($url);
+
+       // var_dump($page);
+
+
+
+
+
+
+
+
+
+
+        return $price;
+
+
+
+    }
+
+
 
 
     public function GetBal(){

@@ -23,22 +23,21 @@ class KonorController extends AppController {
 
 
     // РАБОЧИЕ ПАРАМЕТРЫ
-
-    private $trellingBEGIN = 100; // Через сколько пунктов начинается треллинг
+    private $trellingBEGIN = 30; // Через сколько пунктов начинается треллинг
     private $trellingSTEP = 10; // Через сколько пунктов начинается треллинг
 
-    private $DeltaMA = 1000; // Коридор захода в позицию по МА
-    private $BreakZoneTP = 100; // в шагах
-    private $BreakZoneLOSE = 500; // в шагах
-    private $stoploss = 2000; // Стоп лосс в пунктах актива
+    private $DeltaMA = 500; // Коридор захода в позицию по МА
+    private $BreakZoneTP = 30; // в шагах
+    private $BreakZoneLOSE = 150; // в шагах
+    private $stoploss = 1500; // Стоп лосс в пунктах актива
 
-
+  
 
 
     // Настроечные параметры
-    private $lot = 0.003; // Базовый заход
+    private $lot = 0.001; // Базовый заход
     private $MAval = 10;
-    private $maxflow = 10;
+    private $maxflow = 6;
     private $limitmoneta = 3000; // Скоринг монеты на объемы
 
 
@@ -226,6 +225,27 @@ class KonorController extends AppController {
             echo "Базовый лимитник пустой. Выставляем<br>";
 
 
+            /*
+            // Увеличение лотности в зависимости от кол-ва захода
+            $COUNT = $this->GetFlowNapravlenie($SCRIPT);
+            if ($Napravlenie == "long" && $COUNT['long'] > 1)
+            {
+                $FLOW['lot'] = $this->lot*$COUNT['long'];
+                $ARRCHANGE = [];
+                $ARRCHANGE['lot'] = $this->lot*$COUNT['long'];
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+            }
+
+            if ($Napravlenie == "short" && $COUNT['short'] > 1)
+            {
+                $FLOW['lot'] = $this->lot*$COUNT['short'];
+                $ARRCHANGE = [];
+                $ARRCHANGE['lot'] = $this->lot*$COUNT['short'];
+                $this->ChangeARRinBD($ARRCHANGE, $FLOW['id'], "flows");
+            }
+            // Увеличение лотности в зависимости от кол-ва захода
+            */
+
 
             $FLOW['pointer'] = $Napravlenie;
             $order = $this->CreateFirstOrder($FLOW, $pricenow);
@@ -359,7 +379,7 @@ class KonorController extends AppController {
             // Проверяем в треллинге мы или нет
             if ($globaldelta > $this->trellingBEGIN)
             {
-                $TRALLINGSTATUS = $this->TrallingControl($FLOW, $FLOW['napravlenie'], $pricenow);
+                $TRALLINGSTATUS = $this->TrallingControl($FLOW, $FLOW['napravlenie'], $pricenow, $SCRIPT);
 
             }
 
@@ -812,11 +832,13 @@ class KonorController extends AppController {
 
 
 
-    private function TrallingControl($FLOW, $Napravlenie, $pricenow){
+    private function TrallingControl($FLOW, $Napravlenie, $pricenow, $SCRIPT){
 
         if ($Napravlenie == NULL) return false;
 
         $delta = 0;
+        $COUNT = $this->GetFlowNapravlenie($SCRIPT);
+
 
         if ($Napravlenie == "short")
         {
@@ -837,7 +859,10 @@ class KonorController extends AppController {
             echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
             echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
 
-            if ($delta > $this->trellingSTEP) return true;
+
+
+
+            if ($delta > $this->trellingSTEP/($COUNT['short']-1)) return true;
 
         }
 
@@ -861,7 +886,7 @@ class KonorController extends AppController {
             echo "Максимально зафиксированная цена: ".$FLOW['maxprice']."<br>";
             echo "Отклонение от максимально зафиксированной цены: ".$delta."<br>";
 
-            if ($delta > $this->trellingSTEP) return true;
+            if ($delta > $this->trellingSTEP/($COUNT['long']-1)) return true;
 
         }
 
@@ -910,6 +935,12 @@ class KonorController extends AppController {
 
     private function AddFlow($SCRIPT, $PARAMS = [])
     {
+
+
+
+
+
+
 
         echo "Добавляем поток! <br>";
 
@@ -1183,6 +1214,26 @@ class KonorController extends AppController {
         $flows = R::findAll("flows", 'WHERE scriptid =?', [$SCRIPT['id']]);
         return $flows;
     }
+
+
+
+    private function GetFlowNapravlenie($SCRIPT)
+    {
+
+        $COUNT['long'] = 1;
+        $COUNT['short'] = 1;
+
+        $CountLong = R::count("flows", 'WHERE scriptid =? AND napravlenie =?', [$SCRIPT['id'], "long"]);
+        $CountShort = R::count("flows", 'WHERE scriptid =? AND napravlenie =?', [$SCRIPT['id'], "short"]);
+
+        $COUNT['long'] = $COUNT['long'] + $CountLong;
+        $COUNT['short'] = $COUNT['short'] + $CountShort;
+
+
+
+        return $COUNT;
+    }
+
 
 
     private function GetLastFlowBD($FLOWS, $SCRIPT)
