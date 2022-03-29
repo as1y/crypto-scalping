@@ -22,7 +22,7 @@ define('CONFIG', require 'config/main.php');
 require 'vendor/autoload.php';
 require 'lib/functions.php'; //ОБЩИЕ ФУНКЦИИ
 require 'lib/functions_app.php'; //ФУНКЦИИ ПРИЛОЖЕНИЯ
-
+require 'lib/aparser-api-php-client.php'; //ФУНКЦИИ ПРИЛОЖЕНИЯ
 
 
 //ВАЛИДАТОР
