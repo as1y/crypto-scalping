@@ -1263,7 +1263,6 @@ class FlowController extends AppController {
     private function AddARRinBD($ARR, $BD = false)
     {
 
-
         $tbl = R::dispense($BD);
         //ДОБАВЛЯЕМ В ТАБЛИЦУ
 
