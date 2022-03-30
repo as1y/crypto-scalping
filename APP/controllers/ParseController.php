@@ -89,8 +89,7 @@ class ParseController extends AppController {
         ];
 
 
-
-
+        // СОЗДАЕМ ТАБЛИЦУ С РАЗУЛЬАТАМИ
        $basetable =  $this->GetBaseTable();
        if (empty($basetable))
        {
@@ -113,12 +112,83 @@ class ParseController extends AppController {
        }
 
 
+        $aparser = new \Aparser('http://217.25.90.106:9091/API', '', array('debug'=>'false'));
+
+
+        $statustable =  $this->GetTableStatus();
+
+        if (!empty($statustable))
+        {
+
+
+            echo "<font color='#8b0000'>ПАРСИНГ В РАБОТЕ</font><br>";
+
+            // Смотрим СТАТУС!
+           $STAT =  $this->GetStatusTable();
+
+          $AparserSTAT =   $aparser->getTaskState($STAT['taskid']);
+
+          if ($AparserSTAT['status'] == "completed"){
+
+
+
+              $result = $aparser->getTaskResultsFile($STAT['taskid']);
+
+              $content = file_get_contents($result);
+
+              show($content);
+
+
+              echo "<font color='green'>ПАРСИНГ ЗАКОНЧЕН</font><br>";
+
+          }
+
+
+            return true;
+
+
+        }
+
+
+
+        // ЕСЛИ ТАБЛИЦА ПУСТАЯ, ТО СОЗДАЕМ ЗАПИСЬ!!
+        foreach ($TICKERSqiwiIN as $url => $ticker)
+        {
+            $TICKERSqiwiINZAPROSI[] = $url;
+        }
+
+        $taskUid = $aparser->addTask('default', 'best', 'text', $TICKERSqiwiINZAPROSI);
+        $this->AddTask($taskUid);
+
+
+
+        // СОЗДАЕМ ЗАДАНИЕ
+
 
 
 
 
 
 //        $this->set(compact(''));
+
+    }
+
+
+
+
+
+
+
+    private function AddTask($taskid)
+    {
+
+
+        $ARR['taskid'] = $taskid;
+
+        $this->AddARRinBD($ARR, "statustable");
+        echo "<b><font color='green'>Добавили запись</font></b>";
+        // Добавление ТРЕКА в БД
+
 
     }
 
@@ -149,6 +219,22 @@ class ParseController extends AppController {
         $table = R::findAll("basetickers");
         return $table;
     }
+
+
+    private function GetStatusTable()
+    {
+        $table = R::findOne("statustable");
+        return $table;
+    }
+
+
+
+    private function GetTableStatus()
+    {
+        $table = R::findAll("statustable");
+        return $table;
+    }
+
 
 
     private function AddARRinBD($ARR, $BD = false)
