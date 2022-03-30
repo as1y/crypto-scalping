@@ -115,7 +115,7 @@ class ParseController extends AppController {
         $aparser = new \Aparser('http://217.25.90.106:9091/API', '', array('debug'=>'false'));
 
 
-        $statustable =  $this->GetTableStatus();
+        $statustable =  $this->GetStatusTable();
 
         if (!empty($statustable))
         {
@@ -135,9 +135,18 @@ class ParseController extends AppController {
               $result = $aparser->getTaskResultsFile($STAT['taskid']);
 
               $content = file_get_contents($result);
+              $content = str_replace(" ", "", $content); // Убираем пробелы
+              $content = explode("\n", $content);
+
+
+              // ОБНОВЛЯЕМ ТАБЛИЦУ
+              $this->RenewTickers($content);
+
+
+
+              // УДАЛЯЕМ ПАРСЕР
 
               show($content);
-
 
               echo "<font color='green'>ПАРСИНГ ЗАКОНЧЕН</font><br>";
 
@@ -151,7 +160,7 @@ class ParseController extends AppController {
 
 
 
-        // ЕСЛИ ТАБЛИЦА ПУСТАЯ, ТО СОЗДАЕМ ЗАПИСЬ!!
+        // ЕСЛИ ТАБЛИЦА СТАТУС ПУСТАЯ, ТО СОЗДАЕМ ЗАПИСЬ!!
         foreach ($TICKERSqiwiIN as $url => $ticker)
         {
             $TICKERSqiwiINZAPROSI[] = $url;
@@ -176,6 +185,17 @@ class ParseController extends AppController {
 
 
 
+
+    private function RenewTickers($content)
+    {
+
+
+       $tbl = $this->GetBaseTable();
+       show($tbl);
+
+
+
+    }
 
 
 
@@ -229,11 +249,6 @@ class ParseController extends AppController {
 
 
 
-    private function GetTableStatus()
-    {
-        $table = R::findAll("statustable");
-        return $table;
-    }
 
 
 
