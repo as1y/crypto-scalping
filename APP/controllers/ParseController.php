@@ -16,6 +16,8 @@ class ParseController extends AppController {
 
     private $BaseKurs = 0;
 
+    public $TICKERSqiwiIN = [];
+
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
     public function indexAction()
@@ -46,7 +48,7 @@ class ParseController extends AppController {
         // ПАРАМЕТРЫ ДЛЯ БАЗОВОЙ ТАБЛИЦЫ!
 
 
-        $TICKERSqiwiIN = [
+       $this->TICKERSqiwiIN = [
             "https://www.bestchange.ru/qiwi-to-bitcoin.html" => "BTC",
 "https://www.bestchange.ru/qiwi-to-bitcoin-cash.html" => "BCH",
 "https://www.bestchange.ru/qiwi-to-bitcoin-gold.html" => "BTG",
@@ -59,7 +61,6 @@ class ParseController extends AppController {
 "https://www.bestchange.ru/qiwi-to-polygon.html" => "MATIC",
 "https://www.bestchange.ru/qiwi-to-dash.html" => "DASH",
 "https://www.bestchange.ru/qiwi-to-zcash.html" => "ZEC",
-"https://www.bestchange.ru/qiwi-to-tether-trc20.html" => "USDT",
 "https://www.bestchange.ru/qiwi-to-nem.html" => "XEM",
 "https://www.bestchange.ru/qiwi-to-neo.html" => "NEO",
 "https://www.bestchange.ru/qiwi-to-eos.html" => "EOS",
@@ -79,99 +80,73 @@ class ParseController extends AppController {
 "https://www.bestchange.ru/qiwi-to-ravencoin.html" => "RVN",
 "https://www.bestchange.ru/qiwi-to-solana.html" => "SOL",
 "https://www.bestchange.ru/qiwi-to-vechain.html" => "VET",
-"https://www.bestchange.ru/qiwi-to-shiba-inu.html" => "SHIB",
 "https://www.bestchange.ru/qiwi-to-algorand.html" => "ALGO",
 "https://www.bestchange.ru/qiwi-to-maker.html" => "MKR",
 "https://www.bestchange.ru/qiwi-to-avalanche.html" => "AVAX",
 "https://www.bestchange.ru/qiwi-to-yearn-finance.html" => "YFI",
-"https://www.bestchange.ru/qiwi-to-decentraland.html" => "MANA",
 "https://www.bestchange.ru/qiwi-to-terra.html" => "LUNA",
         ];
 
 
-        // СОЗДАЕМ ТАБЛИЦУ С РАЗУЛЬАТАМИ
+        // БАЗОВАЯ ТАБЛИЦА С ТИКЕРАМИ
        $basetable =  $this->GetBaseTable();
-       if (empty($basetable))
-       {
-
-           // СОЗДАЕМ ТАБЛИЦУ!!
-           foreach ($TICKERSqiwiIN as $url => $ticker)
-           {
-
-               $ZAPIS['global'] = "QIWI";
-               $ZAPIS['type'] = "IN";
-               $ZAPIS['url'] = $url;
-               $ZAPIS['ticker'] = $ticker;
-               $this->AddTable($ZAPIS);
-           }
+        $this->WorkTable($basetable);
+        // БАЗОВАЯ ТАБЛИЦА С ТИКЕРАМИ
 
 
-           echo "<hr>";
-           echo "<font color='green'>Таблица с тикерами создана!</font> <br>";
 
-       }
-
-
+        // Инициализация парсера
         $aparser = new \Aparser('http://217.25.90.106:9091/API', '', array('debug'=>'false'));
 
 
+        // Получаем статус таблицы парсинга
         $statustable =  $this->GetStatusTable();
 
-        if (!empty($statustable))
+        // Если таблица статуса парсинга пустая, то запускаем парсинг
+        if (empty($statustable))
         {
-
-
-            echo "<font color='#8b0000'>ПАРСИНГ В РАБОТЕ</font><br>";
-
-            // Смотрим СТАТУС!
-           $STAT =  $this->GetStatusTable();
-
-          $AparserSTAT =   $aparser->getTaskState($STAT['taskid']);
-
-          if ($AparserSTAT['status'] == "completed"){
-
-
-
-              $result = $aparser->getTaskResultsFile($STAT['taskid']);
-
-              $content = file_get_contents($result);
-              $content = str_replace(" ", "", $content); // Убираем пробелы
-              $content = explode("\n", $content);
-
-
-              // ОБНОВЛЯЕМ ТАБЛИЦУ
-              $this->RenewTickers($content);
-
-
-
-              // УДАЛЯЕМ ПАРСЕР
-
-              show($content);
-
-              echo "<font color='green'>ПАРСИНГ ЗАКОНЧЕН</font><br>";
-
-          }
-
-
+            // ЕСЛИ ТАБЛИЦА СТАТУС ПУСТАЯ, ТО СОЗДАЕМ ЗАПИСЬ!!
+            foreach ($this->TICKERSqiwiIN as $url => $ticker)
+            {
+                $TICKERSqiwiINZAPROSI[] = $url;
+            }
+            $taskUid = $aparser->addTask('default', 'best', 'text', $TICKERSqiwiINZAPROSI);
+            $this->AddTaskBD($taskUid);
             return true;
 
+        }
+
+        // Смотрим СТАТУС!
+        $AparserSTAT =   $aparser->getTaskState($statustable['taskid']);
+
+        echo "<font color='#8b0000'>ПАРСИНГ В РАБОТЕ</font><br>";
+
+
+        if ($AparserSTAT['status'] == "completed"){
+
+            echo "<font color='green'>ПАРСИНГ ЗАКОНЧЕН</font><br>";
+
+            $result = $aparser->getTaskResultsFile($statustable['taskid']);
+            $content = file_get_contents($result);
+            $content = str_replace(" ", "", $content); // Убираем пробелы
+            $content = explode("\n", $content);
+
+            // ОБНОВЛЯЕМ ТАБЛИЦУ
+           // show($content);
+
+            // Обновляем в БД цены
+            $this->RenewTickers($content);
+
+            // Очищаем статус таблицу
+            R::trash($statustable);
+
 
         }
 
 
 
-        // ЕСЛИ ТАБЛИЦА СТАТУС ПУСТАЯ, ТО СОЗДАЕМ ЗАПИСЬ!!
-        foreach ($TICKERSqiwiIN as $url => $ticker)
-        {
-            $TICKERSqiwiINZAPROSI[] = $url;
-        }
-
-        $taskUid = $aparser->addTask('default', 'best', 'text', $TICKERSqiwiINZAPROSI);
-        $this->AddTask($taskUid);
 
 
-
-        // СОЗДАЕМ ЗАДАНИЕ
 
 
 
@@ -184,14 +159,61 @@ class ParseController extends AppController {
 
 
 
+    private function WorkTable($basetable)
+    {
+
+        if (empty($basetable))
+        {
+            // СОЗДАЕМ ТАБЛИЦУ!!
+            foreach ($this->TICKERSqiwiIN as $url => $ticker)
+            {
+                $ZAPIS['global'] = "QIWI";
+                $ZAPIS['type'] = "IN";
+                $ZAPIS['url'] = $url;
+                $ZAPIS['ticker'] = $ticker;
+                $this->AddTable($ZAPIS);
+            }
+            echo "<hr>";
+            echo "<font color='green'>Таблица с тикерами создана!</font> <br>";
+        }
+
+
+        return true;
+
+    }
 
 
     private function RenewTickers($content)
     {
 
 
-       $tbl = $this->GetBaseTable();
-       show($tbl);
+        echo "МАССИВ ПАРСИНГА<br>";
+//        show($content);
+
+        // Преобразовываем массив в примемлемый вид
+        $MASSIV = [];
+        foreach ($content as $key=>$value)
+        {
+            if (empty($value)) continue;
+            $value = explode(";", $value);
+ //           show($value);
+            $MASSIV[$value[0]][] = $value[1];
+            $MASSIV[$value[0]][] = $value[2];
+        }
+
+
+
+        echo "МАССИВ ПО БД<br>";
+        $TICKERS = $this->GetBaseTable();
+        // Добавляем в БД данные из спарсенного контента!
+        foreach ($TICKERS as $ticker)
+        {
+           $ticker->price = $MASSIV[$ticker['url']][0];
+           $ticker->limit = $MASSIV[$ticker['url']][1];
+            R::store($ticker);
+
+        }
+
 
 
 
@@ -199,16 +221,13 @@ class ParseController extends AppController {
 
 
 
-    private function AddTask($taskid)
+    private function AddTaskBD($taskid)
     {
 
-
         $ARR['taskid'] = $taskid;
-
         $this->AddARRinBD($ARR, "statustable");
         echo "<b><font color='green'>Добавили запись</font></b>";
         // Добавление ТРЕКА в БД
-
 
     }
 

@@ -41,7 +41,6 @@ class SpredController extends AppController {
         \APP\core\base\View::setBreadcrumbs($BREADCRUMBS);
         // Браузерная часть
 
-
         //  show(\ccxt\Exchange::$exchanges); // print a list of all available exchange classes
 
         //Запуск CCXT
@@ -51,43 +50,55 @@ class SpredController extends AppController {
         ));
 
 
-
-
-        $TICKERS[] = 'USDT/RUB';
-        $TICKERS[] = 'BCH/USDT';
-        $TICKERS[] = 'XRP/RUB';
-        $TICKERS[] = 'ETC/USDT';
-        $TICKERS[] = 'XMR/USDT';
-        $TICKERS[] = 'SHIB/USDT';
-        $TICKERS[] = 'MKR/USDT';
-        $TICKERS[] = 'WAVES/USDT';
-
-
-
-        show($TICKERS);
+        $TickersBD = $this->LoadTickersBD();
 
         $this->BaseKurs = $exchange->fetch_ticker ("USDT/RUB")['close'];
 
+        $TickersBinance = $exchange->fetch_tickers();
 
-        foreach ($TICKERS as $TICKER)
+         // show($TickersBinance);
+         // exit("11");
+
+        echo "<h1>СПРЕДЫ НА ВХОД</h1>";
+
+        $BestIN = 0;
+
+        foreach ($TickersBD as $TickerWork)
         {
 
-            $binancePRICE = $this->GetBinancePrice($exchange, $TICKER);
+            $symbolbinance = $TickerWork['ticker']."/USDT";
 
-            $BestChangePRICE = $this->GetBestChange($TICKER);
-            $spredzahoda = 100 - $binancePRICE/$BestChangePRICE*100;
+            $BinancePRICE = $TickersBinance[$symbolbinance]['close'];
+            $BinancePRICE = $BinancePRICE*$this->BaseKurs;
+
+
+            $BestChangePRICE = $TickerWork['price'];
+            $spredzahoda = 100 - $BinancePRICE/$BestChangePRICE*100;
             $spredzahoda = round($spredzahoda, 2);
 
 
-            echo "<b>СИМВОЛ:</b> ".$TICKER." <br>";
-            echo "Цена BINANCE ".$binancePRICE."<br>";
-            echo "Цена BEST ".$BestChangePRICE."<br>";
+            if ($BestIN == 0) $BestIN = $spredzahoda;
+
+            if ($BestIN > $spredzahoda) {
+                $MASSIV = [];
+                $BestIN = $spredzahoda;
+                $MASSIV[$symbolbinance] = $spredzahoda;
+            }
+
+            echo "<b>СИМВОЛ:</b> ".$symbolbinance." <br>";
+            echo "Цена BINANCE ".$BinancePRICE."<br>";
+            echo "Цена BestChange ".$BestChangePRICE."<br>";
             echo "<b> СПРЕД ВХОДА </b> ".$spredzahoda." % <br>";
             echo "<hr>";
 
 
 
         }
+
+
+        show($MASSIV);
+
+
 
 
 
@@ -185,9 +196,9 @@ class SpredController extends AppController {
     }
 
 
-    private function GetBalTable()
+    private function LoadTickersBD()
     {
-        $table = R::findAll("balancehistory");
+        $table = R::findAll("basetickers");
         return $table;
     }
 
