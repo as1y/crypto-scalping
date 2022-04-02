@@ -17,6 +17,7 @@ class ParseController extends AppController {
     private $BaseKurs = 0;
 
     public $TICKERSqiwiIN = [];
+    public $TICKERSvisaOUT = [];
 
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
@@ -47,6 +48,45 @@ class ParseController extends AppController {
         //  show(\ccxt\Exchange::$exchanges); // print a list of all available exchange classes
         // ПАРАМЕТРЫ ДЛЯ БАЗОВОЙ ТАБЛИЦЫ!
 
+        $this->TICKERSvisaOUT = [
+            'https://www.bestchange.ru/bitcoin-to-visa-mastercard-rub.html' => 'BTC',
+'https://www.bestchange.ru/bitcoin-cash-to-visa-mastercard-rub.html' => 'BCH',
+'https://www.bestchange.ru/bitcoin-gold-to-visa-mastercard-rub.html' => 'BTG',
+'https://www.bestchange.ru/ethereum-to-visa-mastercard-rub.html' => 'ETH',
+'https://www.bestchange.ru/ethereum-classic-to-visa-mastercard-rub.html' => 'ETC',
+'https://www.bestchange.ru/litecoin-to-visa-mastercard-rub.html' => 'LTC',
+'https://www.bestchange.ru/ripple-to-visa-mastercard-rub.html' => 'XRP',
+'https://www.bestchange.ru/monero-to-visa-mastercard-rub.html' => 'XMR',
+'https://www.bestchange.ru/dogecoin-to-visa-mastercard-rub.html' => 'DOGE',
+'https://www.bestchange.ru/polygon-to-visa-mastercard-rub.html' => 'MATIC',
+'https://www.bestchange.ru/dash-to-visa-mastercard-rub.html' => 'DASH',
+'https://www.bestchange.ru/zcash-to-visa-mastercard-rub.html' => 'ZEC',
+'https://www.bestchange.ru/nem-to-visa-mastercard-rub.html' => 'XEM',
+'https://www.bestchange.ru/neo-to-visa-mastercard-rub.html' => 'NEO',
+'https://www.bestchange.ru/eos-to-visa-mastercard-rub.html' => 'EOS',
+'https://www.bestchange.ru/cardano-to-visa-mastercard-rub.html' => 'ADA',
+'https://www.bestchange.ru/stellar-to-visa-mastercard-rub.html' => 'XLM',
+'https://www.bestchange.ru/tron-to-visa-mastercard-rub.html' => 'TRX',
+'https://www.bestchange.ru/waves-to-visa-mastercard-rub.html' => 'WAVES',
+'https://www.bestchange.ru/omg-to-visa-mastercard-rub.html' => 'OMG',
+'https://www.bestchange.ru/binance-coin-to-visa-mastercard-rub.html' => 'BNB',
+'https://www.bestchange.ru/bat-to-visa-mastercard-rub.html' => 'BAT',
+'https://www.bestchange.ru/qtum-to-visa-mastercard-rub.html' => 'QTUM',
+'https://www.bestchange.ru/chainlink-to-visa-mastercard-rub.html' => 'LINK',
+'https://www.bestchange.ru/cosmos-to-visa-mastercard-rub.html' => 'ATOM',
+'https://www.bestchange.ru/tezos-to-visa-mastercard-rub.html' => 'XTZ',
+'https://www.bestchange.ru/polkadot-to-visa-mastercard-rub.html' => 'DOT',
+'https://www.bestchange.ru/uniswap-to-visa-mastercard-rub.html' => 'UNI',
+'https://www.bestchange.ru/ravencoin-to-visa-mastercard-rub.html' => 'RVN',
+'https://www.bestchange.ru/solana-to-visa-mastercard-rub.html' => 'SOL',
+'https://www.bestchange.ru/vechain-to-visa-mastercard-rub.html' => 'VET',
+'https://www.bestchange.ru/algorand-to-visa-mastercard-rub.html' => 'ALGO',
+'https://www.bestchange.ru/maker-to-visa-mastercard-rub.html' => 'MKR',
+'https://www.bestchange.ru/avalanche-to-visa-mastercard-rub.html' => 'AVAX',
+'https://www.bestchange.ru/yearn-finance-to-visa-mastercard-rub.html' => 'YFI',
+'https://www.bestchange.ru/terra-to-visa-mastercard-rub.html' => 'LUNA',
+
+            ];
 
        $this->TICKERSqiwiIN = [
             "https://www.bestchange.ru/qiwi-to-bitcoin.html" => "BTC",
@@ -89,7 +129,7 @@ class ParseController extends AppController {
 
 
         // БАЗОВАЯ ТАБЛИЦА С ТИКЕРАМИ
-       $basetable =  $this->GetBaseTable();
+       $basetable =  $this->GetBaseTable("IN");
         $this->WorkTable($basetable);
         // БАЗОВАЯ ТАБЛИЦА С ТИКЕРАМИ
 
@@ -99,34 +139,36 @@ class ParseController extends AppController {
         $aparser = new \Aparser('http://217.25.90.106:9091/API', '', array('debug'=>'false'));
 
 
-        // Получаем статус таблицы парсинга
-        $statustable =  $this->GetStatusTable();
+        // ОБНОВЛЕНИЕ ПАРСИНГА IN!!!!!
+
+        $TableIN =  $this->GetStatusTable("IN");
 
         // Если таблица статуса парсинга пустая, то запускаем парсинг
-        if (empty($statustable))
+        if (empty($TableIN))
         {
-            // ЕСЛИ ТАБЛИЦА СТАТУС ПУСТАЯ, ТО СОЗДАЕМ ЗАПИСЬ!!
+
+            // ДОБАВЛЯЕМ В СПИСОК УРЛ QIWI_IN
             foreach ($this->TICKERSqiwiIN as $url => $ticker)
             {
-                $TICKERSqiwiINZAPROSI[] = $url;
+                $ZaprosiIN[] = $url;
             }
-            $taskUid = $aparser->addTask('default', 'best', 'text', $TICKERSqiwiINZAPROSI);
-            $this->AddTaskBD($taskUid);
+            $taskUid = $aparser->addTask('default', 'BestIN', 'text', $ZaprosiIN);
+            $this->AddTaskBD($taskUid, "IN");
             return true;
 
         }
 
+
         // Смотрим СТАТУС!
-        $AparserSTAT =   $aparser->getTaskState($statustable['taskid']);
+        $AparserIN =   $aparser->getTaskState($TableIN['taskid']);
+        echo "<font color='#8b0000'>ПАРСИНГ IN В РАБОТЕ</font><br>";
 
-        echo "<font color='#8b0000'>ПАРСИНГ В РАБОТЕ</font><br>";
 
+        if ($AparserIN['status'] == "completed"){
 
-        if ($AparserSTAT['status'] == "completed"){
+            echo "<font color='green'>ПАРСИНГ IN ЗАКОНЧЕН</font><br>";
 
-            echo "<font color='green'>ПАРСИНГ ЗАКОНЧЕН</font><br>";
-
-            $result = $aparser->getTaskResultsFile($statustable['taskid']);
+            $result = $aparser->getTaskResultsFile($TableIN['taskid']);
             $content = file_get_contents($result);
             $content = str_replace(" ", "", $content); // Убираем пробелы
             $content = explode("\n", $content);
@@ -135,10 +177,10 @@ class ParseController extends AppController {
            // show($content);
 
             // Обновляем в БД цены
-            $this->RenewTickers($content);
+            $this->RenewTickers($content, "IN");
 
             // Очищаем статус таблицу
-            R::trash($statustable);
+            R::trash($TableIN);
 
 
         }
@@ -147,9 +189,45 @@ class ParseController extends AppController {
 
 
 
+        $TableOUT =  $this->GetStatusTable("OUT");
+
+        if (empty($TableOUT))
+        {
+
+            // ДОБАВЛЯЕМ В СПИСОК УРЛ QIWI_IN
+            foreach ($this->TICKERSvisaOUT as $url => $ticker)
+            {
+                $ZaprosiIN[] = $url;
+            }
+            $taskUid = $aparser->addTask('default', 'BestOUT', 'text', $ZaprosiIN);
+            $this->AddTaskBD($taskUid, "OUT");
+            return true;
+
+        }
+
+        $AparserOUT =   $aparser->getTaskState($TableOUT['taskid']);
+        echo "<font color='#8b0000'>ПАРСИНГ OUT В РАБОТЕ</font><br>";
+
+        if ($AparserOUT['status'] == "completed"){
+
+            echo "<font color='green'>ПАРСИНГ OUT ЗАКОНЧЕН</font><br>";
+
+            $result = $aparser->getTaskResultsFile($TableOUT['taskid']);
+            $content = file_get_contents($result);
+            $content = str_replace(" ", "", $content); // Убираем пробелы
+            $content = explode("\n", $content);
+
+            // ОБНОВЛЯЕМ ТАБЛИЦУ
+            // show($content);
+
+            // Обновляем в БД цены
+            $this->RenewTickers($content, "OUT");
+
+            // Очищаем статус таблицу
+            R::trash($TableOUT);
 
 
-
+        }
 
 
 
@@ -164,7 +242,7 @@ class ParseController extends AppController {
 
         if (empty($basetable))
         {
-            // СОЗДАЕМ ТАБЛИЦУ!!
+            // СОЗДАЕМ ТАБЛИЦУ НА КИВИ ВХОД
             foreach ($this->TICKERSqiwiIN as $url => $ticker)
             {
                 $ZAPIS['global'] = "QIWI";
@@ -174,6 +252,21 @@ class ParseController extends AppController {
                 $this->AddTable($ZAPIS);
             }
             echo "<hr>";
+
+            // СОЗДАЕМ ТАБЛИЦУ НА КАРТУ ВЫХОД
+            foreach ($this->TICKERSvisaOUT as $url => $ticker)
+            {
+                $ZAPIS['global'] = "VISA";
+                $ZAPIS['type'] = "OUT";
+                $ZAPIS['url'] = $url;
+                $ZAPIS['ticker'] = $ticker;
+                $this->AddTable($ZAPIS);
+            }
+            echo "<hr>";
+
+
+
+
             echo "<font color='green'>Таблица с тикерами создана!</font> <br>";
         }
 
@@ -183,12 +276,12 @@ class ParseController extends AppController {
     }
 
 
-    private function RenewTickers($content)
+    private function RenewTickers($content, $type)
     {
 
 
         echo "МАССИВ ПАРСИНГА<br>";
-//        show($content);
+
 
         // Преобразовываем массив в примемлемый вид
         $MASSIV = [];
@@ -203,8 +296,9 @@ class ParseController extends AppController {
 
 
 
-        echo "МАССИВ ПО БД<br>";
-        $TICKERS = $this->GetBaseTable();
+        $TICKERS = $this->GetBaseTable($type);
+
+
         // Добавляем в БД данные из спарсенного контента!
         foreach ($TICKERS as $ticker)
         {
@@ -215,16 +309,27 @@ class ParseController extends AppController {
         }
 
 
+        return true;
 
 
     }
 
 
 
-    private function AddTaskBD($taskid)
+    private function AddTaskBD($taskid, $type)
     {
 
-        $ARR['taskid'] = $taskid;
+        $ARR = [];
+        if ($type == "IN")
+        {
+            $ARR['taskid'] = $taskid;
+            $ARR['type'] = "IN";
+        }
+        if ($type == "OUT"){
+            $ARR['taskid'] = $taskid;
+            $ARR['type'] = "OUT";
+
+        }
         $this->AddARRinBD($ARR, "statustable");
         echo "<b><font color='green'>Добавили запись</font></b>";
         // Добавление ТРЕКА в БД
@@ -253,16 +358,16 @@ class ParseController extends AppController {
     }
 
 
-    private function GetBaseTable()
+    private function GetBaseTable($type)
     {
-        $table = R::findAll("basetickers");
+        $table = R::findAll("basetickers", "WHERE type=?", [$type]);
         return $table;
     }
 
 
-    private function GetStatusTable()
+    private function GetStatusTable($type)
     {
-        $table = R::findOne("statustable");
+        $table = R::findOne("statustable", "WHERE type=?", [$type]);
         return $table;
     }
 

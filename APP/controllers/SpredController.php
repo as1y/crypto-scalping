@@ -16,6 +16,7 @@ class SpredController extends AppController {
 
     private $BaseKurs = 0;
 
+    private $TickerBinance =[];
 
     // ТЕХНИЧЕСКИЕ ПЕРЕМЕННЫЕ
     public function indexAction()
@@ -50,55 +51,36 @@ class SpredController extends AppController {
         ));
 
 
-        $TickersBD = $this->LoadTickersBD();
-
         $this->BaseKurs = $exchange->fetch_ticker ("USDT/RUB")['close'];
+        $this->TickerBinance = $exchange->fetch_tickers();
 
-        $TickersBinance = $exchange->fetch_tickers();
 
-         // show($TickersBinance);
-         // exit("11");
+        $TickersBDIN = $this->LoadTickersBD("IN");
+        $TickersBDOUT = $this->LoadTickersBD("OUT");
 
         echo "<h1>СПРЕДЫ НА ВХОД</h1>";
 
-        $BestIN = 0;
+        $RENDER['BestSpred'] = 0;
 
-        foreach ($TickersBD as $TickerWork)
+        foreach ($TickersBDIN as $TickerWork)
         {
 
-            $symbolbinance = $TickerWork['ticker']."/USDT";
+            if ($TickerWork['price'] == "none") continue;
 
-            $BinancePRICE = $TickersBinance[$symbolbinance]['close'];
-            $BinancePRICE = $BinancePRICE*$this->BaseKurs;
+            $RENDER =  $this->RenderPercent($RENDER, $TickerWork);
 
-
-            $BestChangePRICE = $TickerWork['price'];
-            $spredzahoda = 100 - $BinancePRICE/$BestChangePRICE*100;
-            $spredzahoda = round($spredzahoda, 2);
-
-
-            if ($BestIN == 0) $BestIN = $spredzahoda;
-
-            if ($BestIN > $spredzahoda) {
-                $MASSIV = [];
-                $BestIN = $spredzahoda;
-                $MASSIV[$symbolbinance] = $spredzahoda;
-            }
-
-            echo "<b>СИМВОЛ:</b> ".$symbolbinance." <br>";
-            echo "Цена BINANCE ".$BinancePRICE."<br>";
-            echo "Цена BestChange ".$BestChangePRICE."<br>";
-            echo "<b> СПРЕД ВХОДА </b> ".$spredzahoda." % <br>";
+            echo "<b>СИМВОЛ:</b> ".$RENDER['Symbol']." <br>";
+            echo "Цена BINANCE ".$RENDER['BinancePrice']."<br>";
+            echo "Цена BestChange ".$RENDER['ObmenPrice']."<br>";
+            echo "<b> СПРЕД ВХОДА </b> ".$RENDER['Spred']." % <br>";
             echo "<hr>";
-
 
 
         }
 
 
-        show($MASSIV);
-
-
+        show($RENDER['BestSpredSymbol']);
+        show($RENDER['BestSpred']);
 
 
 
@@ -122,60 +104,36 @@ class SpredController extends AppController {
 
 
 
-    public function GetBinancePrice($exchange, $symbol){
-
-        $price = 0;
-
-        if ($symbol == 'USDT/RUB') $price = $exchange->fetch_ticker ("USDT/RUB")['close'];
-        if ($symbol == 'XRP/RUB') $price = $exchange->fetch_ticker ("XRP/RUB")['close'];
-
-        if ($symbol == 'BCH/USDT') $price = $exchange->fetch_ticker ("BCH/USDT")['close']*$this->BaseKurs;
-        if ($symbol == 'ETC/USDT') $price = $exchange->fetch_ticker ("ETC/USDT")['close']*$this->BaseKurs;
-        if ($symbol == 'XMR/USDT') $price = $exchange->fetch_ticker ("XMR/USDT")['close']*$this->BaseKurs;
-        if ($symbol == 'SHIB/USDT') $price = $exchange->fetch_ticker ("SHIB/USDT")['close']*$this->BaseKurs;
-        if ($symbol == 'MKR/USDT') $price = $exchange->fetch_ticker ("MKR/USDT")['close']*$this->BaseKurs;
 
 
-        if ($symbol == 'WAVES/USDT') $price = $exchange->fetch_ticker ("WAVES/USDT")['close']*$this->BaseKurs;
+    private function RenderPercent($RENDER, $TickerWork)
+    {
+
+        $symbolbinance = $TickerWork['ticker']."/USDT";
+        $BinancePRICE = $this->TickerBinance[$symbolbinance]['close'];
+        $BinancePRICE = $BinancePRICE*$this->BaseKurs;
+        $RENDER['Symbol'] = $symbolbinance;
+        $RENDER['BinancePrice'] = $BinancePRICE;
+        $RENDER['ObmenPrice'] = $TickerWork['price'];
 
 
-        return $price;
-
-    }
-
-
-    public function GetBestChange($symbol){
-
-        $price = 0;
-
-        if ($symbol == "USDT/RUB") $price = 115.1;
+        $spredzahoda = 100 - $BinancePRICE/$TickerWork['price']*100;
+        $spredzahoda = round($spredzahoda, 2);
+        $RENDER['Spred'] = $spredzahoda;
 
 
-        if ($symbol == "BCH/USDT") $price = 43840;
-        if ($symbol == "ETC/USDT") $price = 5379;
-        if ($symbol == "XRP/RUB") $price = 97;
-        if ($symbol == "XMR/USDT") $price = 22817;
-        if ($symbol == "SHIB/USDT") $price = 0.0028735632;
 
-        if ($symbol == "MKR/USDT") $price = 279646;
-        if ($symbol == "WAVES/USDT") $price = 3963;
+        if ($RENDER['BestSpred'] == 0) $RENDER['BestSpred'] = $spredzahoda;
 
-
-      //  $page = fCURL($url);
-
-       // var_dump($page);
+        if ($RENDER['BestSpred'] >= $spredzahoda) {
+            $RENDER['BestSpred'] = $spredzahoda;
+            $RENDER['BestSpredSymbol'] = $symbolbinance;
+        }
 
 
 
 
-
-
-
-
-
-
-        return $price;
-
+        return $RENDER;
 
 
     }
@@ -196,9 +154,9 @@ class SpredController extends AppController {
     }
 
 
-    private function LoadTickersBD()
+    private function LoadTickersBD($type)
     {
-        $table = R::findAll("basetickers");
+        $table = R::findAll("basetickers", 'WHERE type =?', [$type]);
         return $table;
     }
 
