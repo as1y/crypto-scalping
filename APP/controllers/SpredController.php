@@ -61,7 +61,6 @@ class SpredController extends AppController {
         echo "<h1>СПРЕДЫ НА ВХОД</h1>";
 
         $RENDER['BestSpred'] = 0;
-
         foreach ($TickersBDIN as $TickerWork)
         {
 
@@ -83,13 +82,30 @@ class SpredController extends AppController {
         show($RENDER['BestSpred']);
 
 
+        echo "<h1>СПРЕДЫ НА ВЫХОД</h1>";
+        $RENDER = [];
+        $RENDER['BestSpred'] = 0;
+
+        foreach ($TickersBDOUT as $TickerWork)
+        {
+
+            if ($TickerWork['price'] == "none") continue;
+
+            $RENDER =  $this->RenderPercent($RENDER, $TickerWork);
+
+            echo "<b>СИМВОЛ:</b> ".$RENDER['Symbol']." <br>";
+            echo "Цена BINANCE ".$RENDER['BinancePrice']."<br>";
+            echo "Цена BestChange ".$RENDER['ObmenPrice']."<br>";
+            echo "<b> СПРЕД ВХОДА </b> ".$RENDER['Spred']." % <br>";
+            echo "<hr>";
+
+
+        }
 
 
 
-
-
-
-
+        show($RENDER['BestSpredSymbol']);
+        show($RENDER['BestSpred']);
 
 
 
@@ -125,7 +141,14 @@ class SpredController extends AppController {
 
         if ($RENDER['BestSpred'] == 0) $RENDER['BestSpred'] = $spredzahoda;
 
-        if ($RENDER['BestSpred'] >= $spredzahoda) {
+
+        if ($RENDER['BestSpred'] >= $spredzahoda && $TickerWork['type'] == "IN") {
+            $RENDER['BestSpred'] = $spredzahoda;
+            $RENDER['BestSpredSymbol'] = $symbolbinance;
+        }
+
+
+        if ($spredzahoda >= $RENDER['BestSpred']  && $TickerWork['type'] == "OUT") {
             $RENDER['BestSpred'] = $spredzahoda;
             $RENDER['BestSpredSymbol'] = $symbolbinance;
         }

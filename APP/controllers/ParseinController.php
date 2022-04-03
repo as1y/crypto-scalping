@@ -6,7 +6,7 @@ use APP\models\Panel;
 use APP\core\base\Model;
 use RedBeanPHP\R;
 
-class ParseController extends AppController {
+class ParseinController extends AppController {
     public $layaout = 'PANEL';
     public $BreadcrumbsControllerLabel = "Панель управления";
     public $BreadcrumbsControllerUrl = "/panel";
@@ -50,43 +50,43 @@ class ParseController extends AppController {
 
         $this->TICKERSvisaOUT = [
             'https://www.bestchange.ru/bitcoin-to-visa-mastercard-rub.html' => 'BTC',
-'https://www.bestchange.ru/bitcoin-cash-to-visa-mastercard-rub.html' => 'BCH',
-'https://www.bestchange.ru/bitcoin-gold-to-visa-mastercard-rub.html' => 'BTG',
-'https://www.bestchange.ru/ethereum-to-visa-mastercard-rub.html' => 'ETH',
-'https://www.bestchange.ru/ethereum-classic-to-visa-mastercard-rub.html' => 'ETC',
-'https://www.bestchange.ru/litecoin-to-visa-mastercard-rub.html' => 'LTC',
-'https://www.bestchange.ru/ripple-to-visa-mastercard-rub.html' => 'XRP',
-'https://www.bestchange.ru/monero-to-visa-mastercard-rub.html' => 'XMR',
-'https://www.bestchange.ru/dogecoin-to-visa-mastercard-rub.html' => 'DOGE',
-'https://www.bestchange.ru/polygon-to-visa-mastercard-rub.html' => 'MATIC',
-'https://www.bestchange.ru/dash-to-visa-mastercard-rub.html' => 'DASH',
-'https://www.bestchange.ru/zcash-to-visa-mastercard-rub.html' => 'ZEC',
-'https://www.bestchange.ru/nem-to-visa-mastercard-rub.html' => 'XEM',
-'https://www.bestchange.ru/neo-to-visa-mastercard-rub.html' => 'NEO',
-'https://www.bestchange.ru/eos-to-visa-mastercard-rub.html' => 'EOS',
-'https://www.bestchange.ru/cardano-to-visa-mastercard-rub.html' => 'ADA',
-'https://www.bestchange.ru/stellar-to-visa-mastercard-rub.html' => 'XLM',
-'https://www.bestchange.ru/tron-to-visa-mastercard-rub.html' => 'TRX',
-'https://www.bestchange.ru/waves-to-visa-mastercard-rub.html' => 'WAVES',
-'https://www.bestchange.ru/omg-to-visa-mastercard-rub.html' => 'OMG',
-'https://www.bestchange.ru/binance-coin-to-visa-mastercard-rub.html' => 'BNB',
-'https://www.bestchange.ru/bat-to-visa-mastercard-rub.html' => 'BAT',
-'https://www.bestchange.ru/qtum-to-visa-mastercard-rub.html' => 'QTUM',
-'https://www.bestchange.ru/chainlink-to-visa-mastercard-rub.html' => 'LINK',
-'https://www.bestchange.ru/cosmos-to-visa-mastercard-rub.html' => 'ATOM',
-'https://www.bestchange.ru/tezos-to-visa-mastercard-rub.html' => 'XTZ',
-'https://www.bestchange.ru/polkadot-to-visa-mastercard-rub.html' => 'DOT',
-'https://www.bestchange.ru/uniswap-to-visa-mastercard-rub.html' => 'UNI',
-'https://www.bestchange.ru/ravencoin-to-visa-mastercard-rub.html' => 'RVN',
-'https://www.bestchange.ru/solana-to-visa-mastercard-rub.html' => 'SOL',
-'https://www.bestchange.ru/vechain-to-visa-mastercard-rub.html' => 'VET',
-'https://www.bestchange.ru/algorand-to-visa-mastercard-rub.html' => 'ALGO',
-'https://www.bestchange.ru/maker-to-visa-mastercard-rub.html' => 'MKR',
-'https://www.bestchange.ru/avalanche-to-visa-mastercard-rub.html' => 'AVAX',
-'https://www.bestchange.ru/yearn-finance-to-visa-mastercard-rub.html' => 'YFI',
-'https://www.bestchange.ru/terra-to-visa-mastercard-rub.html' => 'LUNA',
+            'https://www.bestchange.ru/bitcoin-cash-to-visa-mastercard-rub.html' => 'BCH',
+            'https://www.bestchange.ru/bitcoin-gold-to-visa-mastercard-rub.html' => 'BTG',
+            'https://www.bestchange.ru/ethereum-to-visa-mastercard-rub.html' => 'ETH',
+            'https://www.bestchange.ru/ethereum-classic-to-visa-mastercard-rub.html' => 'ETC',
+            'https://www.bestchange.ru/litecoin-to-visa-mastercard-rub.html' => 'LTC',
+            'https://www.bestchange.ru/ripple-to-visa-mastercard-rub.html' => 'XRP',
+            'https://www.bestchange.ru/monero-to-visa-mastercard-rub.html' => 'XMR',
+            'https://www.bestchange.ru/dogecoin-to-visa-mastercard-rub.html' => 'DOGE',
+            'https://www.bestchange.ru/polygon-to-visa-mastercard-rub.html' => 'MATIC',
+            'https://www.bestchange.ru/dash-to-visa-mastercard-rub.html' => 'DASH',
+            'https://www.bestchange.ru/zcash-to-visa-mastercard-rub.html' => 'ZEC',
+            'https://www.bestchange.ru/nem-to-visa-mastercard-rub.html' => 'XEM',
+            'https://www.bestchange.ru/neo-to-visa-mastercard-rub.html' => 'NEO',
+            'https://www.bestchange.ru/eos-to-visa-mastercard-rub.html' => 'EOS',
+            'https://www.bestchange.ru/cardano-to-visa-mastercard-rub.html' => 'ADA',
+            'https://www.bestchange.ru/stellar-to-visa-mastercard-rub.html' => 'XLM',
+            'https://www.bestchange.ru/tron-to-visa-mastercard-rub.html' => 'TRX',
+            'https://www.bestchange.ru/waves-to-visa-mastercard-rub.html' => 'WAVES',
+            'https://www.bestchange.ru/omg-to-visa-mastercard-rub.html' => 'OMG',
+            'https://www.bestchange.ru/binance-coin-to-visa-mastercard-rub.html' => 'BNB',
+            'https://www.bestchange.ru/bat-to-visa-mastercard-rub.html' => 'BAT',
+            'https://www.bestchange.ru/qtum-to-visa-mastercard-rub.html' => 'QTUM',
+            'https://www.bestchange.ru/chainlink-to-visa-mastercard-rub.html' => 'LINK',
+            'https://www.bestchange.ru/cosmos-to-visa-mastercard-rub.html' => 'ATOM',
+            'https://www.bestchange.ru/tezos-to-visa-mastercard-rub.html' => 'XTZ',
+            'https://www.bestchange.ru/polkadot-to-visa-mastercard-rub.html' => 'DOT',
+            'https://www.bestchange.ru/uniswap-to-visa-mastercard-rub.html' => 'UNI',
+            'https://www.bestchange.ru/ravencoin-to-visa-mastercard-rub.html' => 'RVN',
+            'https://www.bestchange.ru/solana-to-visa-mastercard-rub.html' => 'SOL',
+            'https://www.bestchange.ru/vechain-to-visa-mastercard-rub.html' => 'VET',
+            'https://www.bestchange.ru/algorand-to-visa-mastercard-rub.html' => 'ALGO',
+            'https://www.bestchange.ru/maker-to-visa-mastercard-rub.html' => 'MKR',
+            'https://www.bestchange.ru/avalanche-to-visa-mastercard-rub.html' => 'AVAX',
+            'https://www.bestchange.ru/yearn-finance-to-visa-mastercard-rub.html' => 'YFI',
+            'https://www.bestchange.ru/terra-to-visa-mastercard-rub.html' => 'LUNA',
 
-            ];
+        ];
 
        $this->TICKERSqiwiIN = [
             "https://www.bestchange.ru/qiwi-to-bitcoin.html" => "BTC",
@@ -141,10 +141,10 @@ class ParseController extends AppController {
 
         // ОБНОВЛЕНИЕ ПАРСИНГА IN!!!!!
 
-        $TableIN =  $this->GetStatusTable("IN");
+        $Table =  $this->GetStatusTable("IN");
 
         // Если таблица статуса парсинга пустая, то запускаем парсинг
-        if (empty($TableIN))
+        if (empty($Table))
         {
 
             // ДОБАВЛЯЕМ В СПИСОК УРЛ QIWI_IN
@@ -160,7 +160,7 @@ class ParseController extends AppController {
 
 
         // Смотрим СТАТУС!
-        $AparserIN =   $aparser->getTaskState($TableIN['taskid']);
+        $AparserIN =   $aparser->getTaskState($Table['taskid']);
         echo "<font color='#8b0000'>ПАРСИНГ IN В РАБОТЕ</font><br>";
 
 
@@ -168,66 +168,25 @@ class ParseController extends AppController {
 
             echo "<font color='green'>ПАРСИНГ IN ЗАКОНЧЕН</font><br>";
 
-            $result = $aparser->getTaskResultsFile($TableIN['taskid']);
+            $result = $aparser->getTaskResultsFile($Table['taskid']);
             $content = file_get_contents($result);
             $content = str_replace(" ", "", $content); // Убираем пробелы
             $content = explode("\n", $content);
 
             // ОБНОВЛЯЕМ ТАБЛИЦУ
-           // show($content);
+            show($content);
 
             // Обновляем в БД цены
             $this->RenewTickers($content, "IN");
 
             // Очищаем статус таблицу
-            R::trash($TableIN);
+            R::trash($Table);
 
 
         }
 
 
 
-
-
-        $TableOUT =  $this->GetStatusTable("OUT");
-
-        if (empty($TableOUT))
-        {
-
-            // ДОБАВЛЯЕМ В СПИСОК УРЛ QIWI_IN
-            foreach ($this->TICKERSvisaOUT as $url => $ticker)
-            {
-                $ZaprosiIN[] = $url;
-            }
-            $taskUid = $aparser->addTask('default', 'BestOUT', 'text', $ZaprosiIN);
-            $this->AddTaskBD($taskUid, "OUT");
-            return true;
-
-        }
-
-        $AparserOUT =   $aparser->getTaskState($TableOUT['taskid']);
-        echo "<font color='#8b0000'>ПАРСИНГ OUT В РАБОТЕ</font><br>";
-
-        if ($AparserOUT['status'] == "completed"){
-
-            echo "<font color='green'>ПАРСИНГ OUT ЗАКОНЧЕН</font><br>";
-
-            $result = $aparser->getTaskResultsFile($TableOUT['taskid']);
-            $content = file_get_contents($result);
-            $content = str_replace(" ", "", $content); // Убираем пробелы
-            $content = explode("\n", $content);
-
-            // ОБНОВЛЯЕМ ТАБЛИЦУ
-            // show($content);
-
-            // Обновляем в БД цены
-            $this->RenewTickers($content, "OUT");
-
-            // Очищаем статус таблицу
-            R::trash($TableOUT);
-
-
-        }
 
 
 
@@ -320,6 +279,7 @@ class ParseController extends AppController {
     {
 
         $ARR = [];
+
         if ($type == "IN")
         {
             $ARR['taskid'] = $taskid;
